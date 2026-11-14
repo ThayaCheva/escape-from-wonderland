@@ -6,8 +6,12 @@ import { shuffle } from './rng';
 import { IllegalActionError } from './errors';
 import type { Card, GameState, NumberCard, Position, Seat } from './types';
 
+/** The log is a short on-screen strip; keeping it bounded keeps every step's state copy cheap. */
+export const LOG_LIMIT = 200;
+
 export function log(s: GameState, msg: string): void {
   s.log.push(msg);
+  if (s.log.length > LOG_LIMIT) s.log.splice(0, s.log.length - LOG_LIMIT);
 }
 
 export const nameOf = (s: GameState, seat: Seat) => s.players[seat].name;

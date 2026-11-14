@@ -123,3 +123,14 @@ describe('mutators', () => {
     expect(s.discard).toEqual([mine.card]);
   });
 });
+
+describe('log', () => {
+  it('keeps only the most recent 200 lines', async () => {
+    const { log, LOG_LIMIT } = await import('../mutate');
+    const s = makeState({ players: [{}, {}, {}] });
+    for (let i = 0; i < 250; i++) log(s, `line ${i}`);
+    expect(LOG_LIMIT).toBe(200);
+    expect(s.log).toHaveLength(200);
+    expect(s.log[199]).toBe('line 249');
+  });
+});
