@@ -83,3 +83,21 @@ export function dropAction(state: GameState, seat: Seat, cardId: string): { acti
   const check = checkPlay(state, seat, cardId, { free: extra });
   return check.ok ? { action: { type: 'play', seat, cardId } } : { reason: check.reason };
 }
+
+/**
+ * Whether Pass should ask "Pass anyway?". Only when the player can see their own hand
+ * (online, or after peeking on one screen) — otherwise the question would tell the whole
+ * table that a face-down hand holds a playable card.
+ */
+export function passNeedsConfirm(state: GameState, seat: Seat, view: { online: boolean; peeked: boolean }): boolean {
+  return (view.online || view.peeked) && hasLegalPlay(state, seat);
+}
+
+/**
+ * The new value if it changed since last time, else null. `previous === undefined` means
+ * "the screen just opened": what is already there isn't news.
+ */
+export function changedSince<T>(previous: T | null | undefined, current: T | null): T | null {
+  if (previous === undefined || current === null || current === previous) return null;
+  return current;
+}

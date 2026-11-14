@@ -89,3 +89,25 @@ test('dragging a card from your hand onto the board plays it', async ({ browser 
   await expect(host.getByTestId('waiting')).toContainText('choosing a starting card');
   expect(errors).toEqual([]);
 });
+
+test('the dragged card follows the pointer, and an interrupted drag is cancelled', async ({ browser }) => {
+  const { pages, errors } = await openPlayers(browser, 2);
+  const host = pages[0];
+  const card = host.locator('.player-edge[data-viewer="true"] .card[data-face="up"]:not(.dimmed)').first();
+  const box = (await card.boundingBox())!;
+  const board = (await host.getByTestId('board').boundingBox())!;
+  const target = { x: board.x + board.width * 0.7, y: board.y + board.height * 0.4 };
+  await host.mouse.move(box.x + 8, box.y + box.height / 2);
+  await host.mouse.down();
+  await host.mouse.move(target.x, target.y, { steps: 8 });
+  const ghost = (await host.locator('.drag-ghost').boundingBox())!;
+  // the ghost is drawn around the pointer
+  expect(Math.abs(ghost.x + ghost.width / 2 - target.x)).toBeLessThan(40);
+  expect(Math.abs(ghost.y + ghost.height * 0.6 - target.y)).toBeLessThan(40);
+  // switching away mid-drag cancels it; releasing afterwards plays nothing
+  await host.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await expect(host.locator('.drag-ghost')).toHaveCount(0);
+  await host.mouse.up();
+  await expect(host.getByTestId('prompt')).toContainText('starting card');
+  expect(errors).toEqual([]);
+});

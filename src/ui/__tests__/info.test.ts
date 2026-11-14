@@ -98,3 +98,23 @@ describe('dropAction', () => {
     expect(dropAction(s, 0, w2.id)).toEqual({ action: { type: 'play', seat: 0, cardId: w2.id } });
   });
 });
+
+describe('review fixes', () => {
+  it('pass asks for confirmation only online or after peeking (never leaks a face-down hand)', async () => {
+    const { passNeedsConfirm } = await import('../info');
+    const s = makeState({ players: [{ hand: [num('R', 10)] }, {}, {}], pile: [pileOf(num('W', 9), 1)] });
+    expect(passNeedsConfirm(s, 0, { online: true, peeked: false })).toBe(true);
+    expect(passNeedsConfirm(s, 0, { online: false, peeked: false })).toBe(false);
+    expect(passNeedsConfirm(s, 0, { online: false, peeked: true })).toBe(true);
+    const none = makeState({ players: [{ hand: [num('W', 3)] }, {}, {}], pile: [pileOf(num('W', 9), 1)] });
+    expect(passNeedsConfirm(none, 0, { online: true, peeked: true })).toBe(false);
+  });
+
+  it('the first play after the screen opens is announced, but not what was already there', async () => {
+    const { changedSince } = await import('../info');
+    expect(changedSince(undefined, 'Sam played Red 9.')).toBeNull(); // first render: nothing new
+    expect(changedSince(null, 'Sam played Red 9.')).toBe('Sam played Red 9.'); // first play of a game / round
+    expect(changedSince('Sam played Red 9.', 'Sam played Red 9.')).toBeNull();
+    expect(changedSince('a', null)).toBeNull();
+  });
+});

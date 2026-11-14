@@ -245,3 +245,29 @@ describe('host in game views', () => {
     expect(conns[1].last('view')!.hostSeat).toBe(0);
   });
 });
+
+describe('ended rooms', () => {
+  it('a finished room with players still connected is kept, so Play again works later', () => {
+    const { conns } = lobby(2);
+    manager.handle(conns[0], { t: 'start' });
+    const rooms = (manager as unknown as { rooms: Map<string, { game: { phase: string }; endedAt: number | null }> }).rooms;
+    const room = [...rooms.values()][0];
+    room.game.phase = 'game-over';
+    room.endedAt = clock;
+    clock += 11 * 60_000;
+    manager.sweep();
+    const before = conns[1].msgs.length;
+    manager.handle(conns[0], { t: 'rematch' });
+    expect(conns[1].msgs.length).toBe(before + 1);
+    expect(conns[1].last('view')!.view.phase).toBe('setup');
+  });
+
+  it('Play again in a room that has closed says so instead of doing nothing', () => {
+    const { conns } = lobby(2);
+    manager.handle(conns[0], { t: 'start' });
+    const rooms = (manager as unknown as { rooms: Map<string, unknown> }).rooms;
+    rooms.clear();
+    manager.handle(conns[0], { t: 'rematch' });
+    expect(conns[0].last('error')!.message).toBe('This room has closed. Create a new room to play again.');
+  });
+});

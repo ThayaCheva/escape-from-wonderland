@@ -31,3 +31,25 @@ describe('edgeFor', () => {
     expect(edgeFor(1, 1, 3)).toBe('bottom');
   });
 });
+
+describe('token slots', () => {
+  it('every location slot lies inside that location (traced bounding boxes, percent)', async () => {
+    const { TOKEN_SLOTS } = await import('../boardGeometry');
+    // from tools/trace_locations.py output on the 1237x840 board
+    const px: Record<string, [number, number, number, number]> = {
+      'white-queen': [299, 336, 607, 670],
+      'mad-hatter': [370, 229, 619, 474],
+      'black-forest': [469, 156, 772, 312],
+      chess: [622, 229, 871, 474],
+      'red-queen': [634, 336, 942, 670],
+    };
+    for (const [loc, [l, t, r, b]] of Object.entries(px)) {
+      for (const s of TOKEN_SLOTS[loc as keyof typeof TOKEN_SLOTS]) {
+        expect(s.x, `${loc} x`).toBeGreaterThan((l / 1237) * 100);
+        expect(s.x, `${loc} x`).toBeLessThan((r / 1237) * 100);
+        expect(s.y, `${loc} y`).toBeGreaterThan((t / 840) * 100 + 2);
+        expect(s.y, `${loc} y`).toBeLessThan((b / 840) * 100 - 2);
+      }
+    }
+  });
+});

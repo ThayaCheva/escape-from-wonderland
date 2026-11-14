@@ -89,7 +89,8 @@ export class RoomManager {
     const now = this.opts.now();
     for (const room of [...this.rooms.values()]) {
       const abandoned = room.emptySince !== null && now - room.emptySince >= ABANDONED_MS;
-      const ended = room.endedAt !== null && now - room.endedAt >= ENDED_MS;
+      // a finished room stays while anyone is still in it (they may click Play again)
+      const ended = room.endedAt !== null && now - room.endedAt >= ENDED_MS && room.seats.every((s) => s.conn === null);
       if (abandoned || ended) {
         for (const s of room.seats) if (s.conn) this.byConn.delete(s.conn.id);
         this.rooms.delete(room.code);
@@ -151,7 +152,8 @@ export class RoomManager {
   private rematch(conn: Conn): void {
     const at = this.byConn.get(conn.id);
     const room = at ? this.rooms.get(at.code) : undefined;
-    if (!at || !room || room.hostSeat !== at.seat || room.game?.phase !== 'game-over') return;
+    if (!room) return conn.send({ t: 'error', message: 'This room has closed. Create a new room to play again.' });
+    if (!at || room.hostSeat !== at.seat || room.game?.phase !== 'game-over') return;
     room.endedAt = null;
     this.deal(room);
   }

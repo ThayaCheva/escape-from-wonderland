@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Card as CardT, Edge, GameAction, GameState, LocationId } from '../../engine/types';
 import { actingSeat } from '../../engine/step';
 import { checkPlay } from '../../engine/rules';
 import { CARD_DEFS, isNumber } from '../../engine/cards';
-import { dropAction, hasLegalPlay, lastPlayLine, locationLine, nextSeatToAct } from '../info';
+import { changedSince, dropAction, lastPlayLine, locationLine, nextSeatToAct, passNeedsConfirm } from '../info';
 import { Card } from './Card';
 import { setSoundOn, soundOn } from '../sound';
 import { LOCATIONS } from '../../engine/board';
@@ -83,7 +84,11 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   const [freshPileId, setFreshPileId] = useState<string | null>(null);
   const [sound, setSound] = useState(soundOn);
   const suppressClick = useRef(false);
-  const lastSeen = useRef<{ play: string | null; pileTop: string | null }>({ play: null, pileTop: null });
+  const lastSeen = useRef<{ play: string | null; pileTop: string | null } | null>(null);
+  const latest = useRef(state);
+  latest.current = state;
+  const endDrag = useRef<(() => void) | null>(null);
+  useEffect(() => () => endDrag.current?.(), []);
 
   const prompt = state.prompts[0];
   const acting = actingSeat(state);
@@ -127,8 +132,10 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   useEffect(() => {
     const play = lastPlayLine(state.log);
     const seen = lastSeen.current;
-    if (seen.play !== null && play && play !== seen.play) setCallout(play);
-    if (seen.pileTop !== null && pileTop && pileTop !== seen.pileTop) setFreshPileId(pileTop);
+    const newPlay = changedSince(seen ? seen.play : undefined, play);
+    const newTop = changedSince(seen ? seen.pileTop : undefined, pileTop);
+    if (newPlay) setCallout(newPlay);
+    if (newTop) setFreshPileId(newTop);
     lastSeen.current = { play, pileTop };
   }, [newest, state.log.length, pileTop]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -146,10 +153,9 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
 
   /** Press on a card in your hand: a click previews it, a drag onto the board plays it. */
   function onCardPointerDown(card: CardT, e: React.PointerEvent) {
-    if (e.button !== 0 || handoff || faceSeat !== acting) return;
+    if (e.button !== 0 || handoff || faceSeat !== acting || endDrag.current) return;
     const start = { x: e.clientX, y: e.clientY };
     const seat = acting;
-    const snapshot = state;
     let dragging = false;
     const move = (ev: PointerEvent) => {
       if (!dragging && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 6) {
@@ -158,20 +164,31 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
       }
       if (dragging) setDrag({ card, x: ev.clientX, y: ev.clientY, over: overBoard(ev.clientX, ev.clientY) });
     };
-    const up = (ev: PointerEvent) => {
+    // an interrupted drag (switching windows, the system taking the pointer) is simply cancelled
+    const stop = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', stop);
+      window.removeEventListener('blur', stop);
+      endDrag.current = null;
+      setDrag(null);
+    };
+    const up = (ev: PointerEvent) => {
+      stop();
       if (!dragging) return;
       suppressClick.current = true;
       setTimeout(() => (suppressClick.current = false), 0);
-      setDrag(null);
       if (!overBoard(ev.clientX, ev.clientY)) return;
-      const result = dropAction(snapshot, seat, card.id);
+      // decide against the game as it is now, not as it was when the drag began
+      const result = dropAction(latest.current, seat, card.id);
       if ('action' in result) send(result.action);
       else setToast(result.reason);
     };
+    endDrag.current = stop;
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', stop);
+    window.addEventListener('blur', stop);
   }
 
   const previewCard = preview ? state.players[acting].hand.find((c) => c.id === preview) ?? null : null;
@@ -247,7 +264,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
             className={`btn small${confirmPass ? ' confirm' : ''}`}
             onClick={() => {
               // passing while holding a playable card asks once more
-              if (!confirmPass && !actingPlayer.down && hasLegalPlay(state, seat)) {
+              if (!confirmPass && !actingPlayer.down && passNeedsConfirm(state, seat, { online, peeked: gate.peeked })) {
                 setConfirmPass(true);
                 setTimeout(() => setConfirmPass(false), 3000);
                 return;
@@ -397,11 +414,15 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
           </div>
         )
       ) : null}
-      {drag ? (
-        <div className="drag-ghost" style={{ left: drag.x, top: drag.y }}>
-          <Card card={drag.card} faceUp size="hand-lg" />
-        </div>
-      ) : null}
+      {drag
+        ? // drawn outside the scaled stage so it sits exactly under the pointer at any window size
+          createPortal(
+            <div className="drag-ghost" style={{ left: drag.x, top: drag.y }}>
+              <Card card={drag.card} faceUp size="hand-lg" />
+            </div>,
+            document.body,
+          )
+        : null}
       {offline ? (
         <div className="offline-bar" data-testid="offline">
           Reconnecting…

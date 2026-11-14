@@ -22,7 +22,7 @@ function slotsAround(cx: number, cy: number, dx = 3.2, dy = 5.5): Array<{ x: num
 export const TOKEN_SLOTS: Record<Position, Array<{ x: number; y: number }>> = {
   'white-queen': slotsAround(36.5, 66),
   'mad-hatter': slotsAround(40, 40),
-  'black-forest': slotsAround(50, 18, 3.2, 4.5),
+  'black-forest': slotsAround(50, 27, 3.2, 4.5),
   chess: slotsAround(61.5, 36),
   'red-queen': slotsAround(63.5, 66),
   // the open ground between the two castles
