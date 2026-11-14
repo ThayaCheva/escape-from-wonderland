@@ -48,7 +48,12 @@ async function serveStatic(distDir: string, req: IncomingMessage, res: ServerRes
   }
 }
 
-export async function startServer(opts: { port: number; distDir: string }): Promise<{ port: number; close(): Promise<void> }> {
+export async function startServer(opts: {
+  port: number;
+  distDir: string;
+  /** How often to ping sockets; a socket that misses a ping is dropped. */
+  heartbeatMs?: number;
+}): Promise<{ port: number; close(): Promise<void> }> {
   const manager = new RoomManager({ now: () => Date.now(), randomInt: (max) => randomInt(max) });
 
   const http = createServer((req, res) => {
@@ -62,8 +67,11 @@ export async function startServer(opts: { port: number; distDir: string }): Prom
   // small messages only; a bad frame from one client must never take the process down
   const wss = new WebSocketServer({ server: http, path: '/ws', maxPayload: 64 * 1024 });
   wss.on('error', (e) => console.error('websocket server error', e));
+  const alive = new WeakMap<WebSocket, boolean>();
   wss.on('connection', (ws: WebSocket) => {
     ws.on('error', () => ws.terminate());
+    alive.set(ws, true);
+    ws.on('pong', () => alive.set(ws, true));
     const conn: Conn = {
       id: randomUUID(),
       send: (msg) => {
@@ -88,6 +96,17 @@ export async function startServer(opts: { port: number; distDir: string }): Prom
   });
 
   const sweeper = setInterval(() => manager.sweep(), 60_000);
+  // a laptop that went to sleep never answers; dropping it shows others "waiting to reconnect"
+  const heartbeat = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (!alive.get(ws)) {
+        ws.terminate();
+        continue;
+      }
+      alive.set(ws, false);
+      ws.ping();
+    }
+  }, opts.heartbeatMs ?? 20_000);
 
   await new Promise<void>((r) => http.listen(opts.port, r));
   const address = http.address();
@@ -98,6 +117,7 @@ export async function startServer(opts: { port: number; distDir: string }): Prom
     close: () =>
       new Promise<void>((r) => {
         clearInterval(sweeper);
+        clearInterval(heartbeat);
         for (const client of wss.clients) client.terminate();
         wss.close();
         http.close(() => r());

@@ -6,6 +6,7 @@ export type ClientMsg =
   | { t: 'join'; room: string; name: string }
   | { t: 'resume'; room: string; token: string }
   | { t: 'start' }
+  | { t: 'rematch' }
   | { t: 'action'; action: GameAction }
   | { t: 'ping' };
 

@@ -109,3 +109,26 @@ describe('hostile input', () => {
     c.ws.close();
   });
 });
+
+describe('heartbeat', () => {
+  it('closes a socket that never answers pings', async () => {
+    const { mkdtempSync } = await import('node:fs');
+    const dist = mkdtempSync(join(tmpdir(), 'ew-hb-'));
+    const hb = await startServer({ port: 0, distDir: dist, heartbeatMs: 100 });
+    const { connect } = await import('node:net');
+    const closed = await new Promise<boolean>((resolve) => {
+      const sock = connect(hb.port, '127.0.0.1', () => {
+        const lines = ['GET /ws HTTP/1.1', 'Host: x', 'Upgrade: websocket', 'Connection: Upgrade', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==', 'Sec-WebSocket-Version: 13', '', ''];
+        sock.write(lines.join(String.fromCharCode(13, 10)));
+      });
+      sock.resume(); // read (and ignore) the pings so the close is noticed
+      sock.on('close', () => resolve(true));
+      setTimeout(() => {
+        sock.destroy();
+        resolve(false);
+      }, 1500);
+    });
+    await hb.close();
+    expect(closed).toBe(true);
+  });
+});

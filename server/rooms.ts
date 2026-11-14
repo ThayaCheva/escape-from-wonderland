@@ -53,6 +53,8 @@ export class RoomManager {
         return this.resume(conn, msg.room, msg.token);
       case 'start':
         return this.start(conn);
+      case 'rematch':
+        return this.rematch(conn);
       case 'action':
         return this.action(conn, msg.action);
       default:
@@ -142,6 +144,20 @@ export class RoomManager {
     const count = room.seats.length;
     if (count < 2) return conn.send({ t: 'error', message: 'Need at least 2 players.' });
     room.phase = 'game';
+    this.deal(room);
+  }
+
+  /** After a game ends, the host deals a fresh game for the same seats. */
+  private rematch(conn: Conn): void {
+    const at = this.byConn.get(conn.id);
+    const room = at ? this.rooms.get(at.code) : undefined;
+    if (!at || !room || room.hostSeat !== at.seat || room.game?.phase !== 'game-over') return;
+    room.endedAt = null;
+    this.deal(room);
+  }
+
+  private deal(room: Room): void {
+    const count = room.seats.length;
     room.game = newGame({
       playerCount: count as 2 | 3 | 4,
       names: room.seats.map((s) => s.name),

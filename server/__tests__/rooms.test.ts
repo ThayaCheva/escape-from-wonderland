@@ -206,3 +206,34 @@ describe('review fixes', () => {
     expect(deal([1, 2, 3, 4, 5, 6, 7])).not.toBe(deal([7, 6, 5, 4, 3, 2, 1]));
   });
 });
+
+describe('rematch', () => {
+  function finished() {
+    const l = lobby(2);
+    manager.handle(l.conns[0], { t: 'start' });
+    // hand-built: end the game in the room's state
+    const room = (manager as unknown as { rooms: Map<string, { game: { phase: string; winner: number } }> }).rooms.get(l.room)!;
+    return { ...l, room };
+  }
+
+  it('is ignored from a guest and in the middle of a game', () => {
+    const { conns } = finished();
+    const n = conns[0].msgs.length;
+    manager.handle(conns[0], { t: 'rematch' });
+    expect(conns[0].msgs.length).toBe(n);
+  });
+
+  it('after game over, the host starts a fresh game with the same seats', () => {
+    const { conns, room } = finished();
+    room.game.phase = 'game-over';
+    room.game.winner = 1;
+    const before = conns[1].msgs.length;
+    manager.handle(conns[1], { t: 'rematch' });
+    expect(conns[1].msgs.length).toBe(before);
+    manager.handle(conns[0], { t: 'rematch' });
+    const v = conns[1].last('view')!.view;
+    expect(v.phase).toBe('setup');
+    expect(v.players.map((p) => p.name)).toEqual(['Ann', 'P1']);
+    expect(v.prompts[0]).toEqual({ type: 'setup-pick', seat: 0 });
+  });
+});
