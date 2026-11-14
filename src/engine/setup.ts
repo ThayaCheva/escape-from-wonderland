@@ -9,7 +9,12 @@ const EDGES: Record<2 | 3 | 4, Edge[]> = {
   4: ['bottom', 'left', 'top', 'right'],
 };
 export const ALICE_FOR_EDGE: Record<Edge, AliceColor> = { bottom: 'gold', left: 'rose', top: 'blue', right: 'mint' };
-const ALICE_NAMES: Record<AliceColor, string> = {
+/** Alice colours by seat for a given player count. */
+export function seatAlices(count: 2 | 3 | 4): AliceColor[] {
+  return EDGES[count].map((e) => ALICE_FOR_EDGE[e]);
+}
+
+export const ALICE_NAMES: Record<AliceColor, string> = {
   gold: 'Gold Alice',
   rose: 'Rose Alice',
   blue: 'Blue Alice',
