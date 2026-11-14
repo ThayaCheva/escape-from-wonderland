@@ -7,7 +7,8 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "preview": "vite preview",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "start": "tsx server/index.ts"
   },
   "type": "module",
   "dependencies": {
