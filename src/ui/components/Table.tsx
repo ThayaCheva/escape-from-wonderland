@@ -14,6 +14,7 @@ import { CardPreview } from './CardPreview';
 import { GameLog } from './GameLog';
 import { HandoffBanner } from './HandoffBanner';
 import { PlayerEdge } from './PlayerEdge';
+import { OpponentPanel } from './OpponentPanel';
 import { PromptPanel } from './PromptPanel';
 import { RulesPanel } from './RulesPanel';
 import { Stage } from './Stage';
@@ -271,7 +272,21 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
         freshPileId={freshPileId}
         callout={callout}
       />
-      {state.players.map((_, seat) => (
+      {state.players.map((_, seat) =>
+        online && seat !== viewerSeat ? (
+          <OpponentPanel
+            key={seat}
+            state={state}
+            seat={seat}
+            edge={edgeOf(seat)}
+            glowing={seat === acting}
+            connected={connected ? connected[seat] !== false : true}
+            next={state.phase === 'playing' && seat === nextSeatToAct(state) && seat !== state.current}
+            where={locationLine(state, seat, false)}
+            targetable={targetSeats.includes(seat)}
+            onPick={() => send({ type: 'choose-seat', seat: acting, target: seat })}
+          />
+        ) : (
         <PlayerEdge
           key={seat}
           state={state}
@@ -294,7 +309,8 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
           next={state.phase === 'playing' && seat === nextSeatToAct(state) && seat !== state.current}
           controls={controls(seat)}
         />
-      ))}
+        ),
+      )}
 
       <div className="corner corner-tl">
         <GameLog lines={state.log} />
