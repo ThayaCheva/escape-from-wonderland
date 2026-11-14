@@ -32,6 +32,8 @@ export function promptNeedsOwnHand(p: Prompt | undefined): boolean {
 
 /** The one seat whose own hand may be face up right now, or null. */
 export function faceUpHandSeat(state: GameState, gate: UiGate): Seat | null {
+  // once the game is over every hand flips back, even during the win animation
+  if (state.phase === 'game-over') return null;
   if (needsHandoff(state, gate) || gate.confirmedSeat === null) return null;
   const front = state.prompts[0];
   if (front?.type === 'view-hand') return null;

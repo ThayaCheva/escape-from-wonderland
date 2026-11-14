@@ -61,7 +61,7 @@ describe('detectAnimations', () => {
       'Kim passes.',
     ]);
     expect(detectAnimations(prev, next)).toEqual([
-      { kind: 'party' },
+      { kind: 'party', seats: [0, 1, 2] },
       { kind: 'swap', a: 0, b: 2 },
       { kind: 'peek', a: 1, b: 0 },
       { kind: 'slay', title: 'Jabberwocky' },
@@ -149,5 +149,39 @@ describe('locationInfo', () => {
     const s = names();
     s.active = [{ card: sp('shadow-creatures'), seat: 1 }];
     expect(locationInfo(s, 'chess').off).toBe(true);
+  });
+});
+
+describe('review fixes', () => {
+  it('new lines that repeat the old last lines are still seen (Decree right after a round starts)', () => {
+    const prev = ['Round 2 begins. Everyone draws a card.', 'Ann draws 1 card.', 'Sam draws 1 card.', 'Kim draws 1 card.'];
+    const added = ["Ann plays Red Queen's Decree.", 'Ann draws 1 card.', 'Sam draws 1 card.', 'Kim draws 1 card.'];
+    expect(newLogLines(prev, [...prev, ...added])).toEqual(added);
+  });
+
+  it('after the cap, the smallest number of dropped lines is used', () => {
+    // the two new lines happen to repeat the two newest old ones
+    const prev = Array.from({ length: 200 }, (_, i) => `l${i}`);
+    const next = [...prev.slice(2), 'l198', 'l199'];
+    expect(newLogLines(prev, next)).toEqual(['l198', 'l199']);
+  });
+
+  it("Mad Hatter's Party only moves hands between players who took part", () => {
+    const prev = makeState({ players: [{ name: 'Ann', position: 'mad-hatter' }, { name: 'Sam', position: 'chess' }, { name: 'Kim' }] });
+    const next = after(prev, ["Ann plays Mad Hatter's Party.", 'Hands pass to the right.']);
+    expect(detectAnimations(prev, next)).toEqual([
+      { kind: 'special', seat: 0, name: 'mh-party' },
+      { kind: 'party', seats: [0, 2] },
+    ]);
+  });
+
+  it('a turn banner is stale once the turn has moved on', async () => {
+    const { isStale } = await import('../animationEvents');
+    const s = makeState({ players: [{}, {}, {}], current: 2 });
+    expect(isStale({ kind: 'turn', seat: 1 }, s)).toBe(true);
+    expect(isStale({ kind: 'turn', seat: 2 }, s)).toBe(false);
+    s.phase = 'game-over';
+    expect(isStale({ kind: 'turn', seat: 2 }, s)).toBe(true);
+    expect(isStale({ kind: 'draw', seat: 0, count: 1 }, s)).toBe(false);
   });
 });

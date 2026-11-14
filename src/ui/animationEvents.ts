@@ -2,13 +2,14 @@
 // Pure: no React, no DOM. Uses only information the viewer already has (public log + public state).
 import { CARD_DEFS } from '../engine/cards';
 import { LOCATION_NAMES } from '../engine/board';
+import { isImmune } from '../engine/rules';
 import type { CardName, GameState, LocationId, Seat } from '../engine/types';
 
 export type Anim =
   | { kind: 'special'; seat: Seat; name: CardName }
   | { kind: 'draw'; seat: Seat; count: number }
   | { kind: 'discard'; seat: Seat; count: number }
-  | { kind: 'party' }
+  | { kind: 'party'; seats: Seat[] }
   | { kind: 'swap'; a: Seat; b: Seat }
   | { kind: 'peek'; a: Seat; b: Seat }
   | { kind: 'slay'; title: string }
@@ -22,12 +23,19 @@ export type Anim =
 /** Lines added to the log since `prev`. Copes with the 200-line cap dropping old lines. */
 export function newLogLines(prev: string[] | null, next: string[]): string[] {
   if (!prev) return [];
-  if (prev.length === 0) return [...next];
-  // find where prev's tail sits inside next, checking a few lines so repeated lines don't fool us
-  const k = Math.min(3, prev.length);
-  const tail = prev.slice(-k);
-  for (let end = next.length; end >= k; end--) {
-    if (tail.every((line, i) => next[end - k + i] === line)) return next.slice(end);
+  // the log only grows at the end and loses lines at the front (200-line cap): find the
+  // fewest dropped lines d such that what is left of prev is exactly how next begins
+  for (let d = 0; d <= prev.length; d++) {
+    const kept = prev.length - d;
+    if (kept > next.length) continue;
+    let match = true;
+    for (let i = 0; i < kept; i++) {
+      if (prev[d + i] !== next[i]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) return next.slice(kept);
   }
   return [];
 }
@@ -41,12 +49,14 @@ export function detectAnimations(prev: GameState | null, next: GameState): Anim[
     return i < 0 ? null : i;
   };
   const anims: Anim[] = [];
+  let partyBy: Seat | null = null;
   for (const line of newLogLines(prev.log, next.log)) {
     let m: RegExpMatchArray | null;
     if ((m = line.match(/^(.+) plays (.+)\.$/))) {
       const name = TITLE_TO_NAME.get(m[2]);
       const seat = seatOf(m[1]);
       if (name && seat !== null) anims.push({ kind: 'special', seat, name });
+      if (name === 'mh-party') partyBy = seat;
     } else if ((m = line.match(/^(.+) draws (\d+) cards?\.$/))) {
       const seat = seatOf(m[1]);
       if (seat !== null) anims.push({ kind: 'draw', seat, count: Number(m[2]) });
@@ -57,7 +67,10 @@ export function detectAnimations(prev: GameState | null, next: GameState): Anim[
       const seat = seatOf(m[1]);
       if (seat !== null) anims.push({ kind: 'discard', seat, count: m[2].split(', ').length });
     } else if (line === 'Hands pass to the right.') {
-      anims.push({ kind: 'party' });
+      // only players who weren't immune passed their hands
+      const all = prev.players.map((_, i) => i);
+      const by = partyBy;
+      anims.push({ kind: 'party', seats: by === null ? all : all.filter((i) => !isImmune(prev, i, { kind: 'event', bySeat: by })) });
     } else if ((m = line.match(/^(.+) and (.+) swap a card\.$/))) {
       const a = seatOf(m[1]);
       const b = seatOf(m[2]);
@@ -111,4 +124,10 @@ export function locationInfo(state: GameState, loc: LocationId): { name: string;
     events,
     off: state.active.some((a) => a.card.name === 'shadow-creatures'),
   };
+}
+
+/** A queued turn banner is out of date once the turn has moved on (or the game ended). */
+export function isStale(anim: Anim, state: GameState): boolean {
+  if (anim.kind !== 'turn') return false;
+  return state.phase !== 'playing' || state.current !== anim.seat;
 }

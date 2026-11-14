@@ -43,3 +43,12 @@ for (const players of [3, 2] as const) {
     expect(errors).toEqual([]);
   });
 }
+
+test('with reduced motion, banners do not slide', async ({ browser }) => {
+  const ctx = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1366, height: 768 } });
+  const page = await ctx.newPage();
+  await startGame(page, 3);
+  const name = await page.locator('.handoff-title').evaluate((el) => getComputedStyle(el).animationName);
+  expect(name).toBe('none');
+  await ctx.close();
+});

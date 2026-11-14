@@ -116,8 +116,8 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   const faceSeat = online ? viewerSeat : faceUpHandSeat(state, gate);
   /** True when the person at this screen is the one who must act. */
   const mine = !online || acting === viewerSeat;
-  const canAct = !handoff && mine;
-  const myTurnNoPrompt = !online && !handoff && !prompt;
+  const canAct = !handoff && mine && state.phase !== 'game-over';
+  const myTurnNoPrompt = !online && !handoff && !prompt && state.phase !== 'game-over';
 
   // clear transient selections whenever the situation changes
   const situation = `${state.log.length}|${state.prompts.length}|${prompt?.type}|${acting}`;

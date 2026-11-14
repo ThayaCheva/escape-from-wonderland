@@ -1082,15 +1082,32 @@ body,
   color: #f0a0a0;
 }
 @media (prefers-reduced-motion: reduce) {
+  /* no movement at all: things that travel are left out, announcements just fade */
   .anim-flight,
   .anim-particle,
-  .anim-escape {
+  .anim-escape,
+  .anim-link,
+  .anim-pulse,
+  .anim-slay::after {
     display: none;
   }
   .anim-special,
   .anim-banner,
   .anim-stamp,
   .anim-slay {
-    animation-name: fadein;
+    animation: rm-fade 600ms ease both !important;
   }
+  .pile.revealing .card,
+  .pile .card.fresh,
+  .handoff-title,
+  .location-glow,
+  .callout {
+    animation: none !important;
+  }
+}
+@keyframes rm-fade {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
 }

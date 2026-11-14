@@ -52,3 +52,11 @@ describe('visibility', () => {
     expect(needsHandoff(s, { confirmedSeat: null, peeked: false })).toBe(false);
   });
 });
+
+describe('game over', () => {
+  it('no hand stays face up once the game has ended, even if it was peeked', () => {
+    const s = makeState({ players: [{ hand: fill() }, { hand: [] }, { hand: fill() }] });
+    s.phase = 'game-over';
+    expect(faceUpHandSeat(s, { confirmedSeat: 0, peeked: true })).toBeNull();
+  });
+});

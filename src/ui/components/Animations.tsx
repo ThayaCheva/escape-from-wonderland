@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { CardName, Edge, GameState, Seat } from '../../engine/types';
 import { CARD_DEFS } from '../../engine/cards';
-import type { Anim } from '../animationEvents';
+import { isStale, type Anim } from '../animationEvents';
 import { BOARD_CENTRE, DECK_POINT, DISCARD_POINT, EFFECTS_POINT, PILE_POINT_STAGE, seatAnchors, tokenPoint, type Point } from '../anchors';
 import { aliceImage } from '../assets';
 import { Card } from './Card';
@@ -69,6 +69,8 @@ export function Animations({ batch, state, edgeOf, online, viewerSeat }: Props) 
   const [items, setItems] = useState<Item[]>([]);
   // specials and banners each play one after another; this is when each channel is free again
   const free = useRef({ special: 0, banner: 0 });
+  const latest = useRef(state);
+  latest.current = state;
 
   useEffect(() => {
     if (!batch) return;
@@ -123,10 +125,10 @@ export function Animations({ batch, state, edgeOf, online, viewerSeat }: Props) 
           for (let i = 0; i < 3; i++) add(<Flight from={PILE_POINT_STAGE} to={DISCARD_POINT} delay={i * 80} faceDown />, 0, FLIGHT_MS + 300);
           break;
         case 'party': {
-          const n = state.players.length;
-          for (let s = 0; s < n; s++) {
-            // a hand passes to the right: to the previous player in turn order
-            add(<Flight from={anchor(s).hand} to={anchor((s - 1 + n) % n).hand} delay={0} />, 0, FLIGHT_MS + 100);
+          const p = a.seats;
+          for (let i = 0; i < p.length; i++) {
+            // a hand passes to the right: to the previous player who took part
+            add(<Flight from={anchor(p[i]).hand} to={anchor(p[(i - 1 + p.length) % p.length]).hand} delay={0} />, 0, FLIGHT_MS + 100);
           }
           break;
         }
@@ -176,16 +178,22 @@ export function Animations({ batch, state, edgeOf, online, viewerSeat }: Props) 
             ROUND_MS,
           );
           break;
-        case 'turn':
+        case 'turn': {
           if (!online) break; // one screen: the hand-off banner announces turns
-          add(
+          const startIn = inChannel('banner', BANNER_MS);
+          // by the time a queued banner's moment comes the turn may have moved on: then skip it
+          setTimeout(() => {
+            if (isStale(a, latest.current)) return;
+            add(
             <div className={`anim-banner turn${a.seat === viewerSeat ? ' mine' : ''}`}>
               <div className="banner-big">{a.seat === viewerSeat ? 'Your turn' : `${name(a.seat)}'s turn`}</div>
             </div>,
-            inChannel('banner', BANNER_MS),
+            0,
             BANNER_MS,
           );
+          }, startIn);
           break;
+        }
         case 'win': {
           const from = tokenPoint(state.players[a.seat].position, 0);
           add(
