@@ -36,7 +36,7 @@ export async function randomMove(page: Page): Promise<boolean> {
   const prompt = page.getByTestId('prompt');
   if (await prompt.count()) {
     const text = await prompt.innerText();
-    for (const sel of ['.location-area.selectable', '.plate.targetable', '.active-row .card.clickable']) {
+    for (const sel of ['.location-area.selectable', '.plate.targetable', '.effect-row.clickable']) {
       const t = page.locator(sel);
       const n = await t.count();
       if (n) {

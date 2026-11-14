@@ -208,9 +208,9 @@ body,
 }
 .pile-label {
   position: absolute;
-  top: 62px;
-  left: -60px;
-  width: 120px;
+  top: -12px;
+  left: 46px;
+  width: 110px;
   text-align: center;
   font-family: var(--heading);
   color: var(--ink);
@@ -640,4 +640,109 @@ body,
   font-size: 22px;
   padding: 6px 22px;
   border-radius: 8px;
+}
+
+/* ---------- traced locations, effects, callout ---------- */
+.board.pointing {
+  cursor: pointer;
+}
+.board.drop-target {
+  box-shadow: 0 0 0 4px var(--gold-bright), 0 0 40px rgba(224, 194, 122, 0.7);
+}
+.location-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 8px var(--gold-bright));
+  animation: glow 1.4s ease-in-out infinite;
+}
+.location-glow.hovered {
+  animation: none;
+  filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 14px var(--gold-bright));
+}
+.location-fill {
+  position: absolute;
+  inset: 0;
+  background: rgba(224, 194, 122, 0.35);
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+}
+.location-glow.hovered .location-fill {
+  background: rgba(224, 194, 122, 0.55);
+}
+@keyframes glow {
+  50% {
+    opacity: 0.55;
+  }
+}
+.location-area.selectable {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  font-family: var(--heading);
+  font-size: 15px;
+  color: var(--navy-deep);
+  background: rgba(236, 232, 225, 0.92);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 2px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.effects-panel {
+  position: absolute;
+  left: 2%;
+  top: 4%;
+  width: 26%;
+  background: rgba(30, 32, 40, 0.86);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  z-index: 4;
+}
+.effects-title {
+  font-family: var(--heading);
+  color: var(--gold-bright);
+  font-size: 15px;
+}
+.effect-row {
+  margin-top: 3px;
+}
+.effect-row.clickable {
+  cursor: pointer;
+  outline: 2px dashed var(--gold-bright);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.callout {
+  position: absolute;
+  left: 46px;
+  top: -64px;
+  width: 210px;
+  background: rgba(30, 32, 40, 0.92);
+  border: 1px solid var(--gold-bright);
+  color: var(--parchment);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 15px;
+  animation: fadein 0.25s ease;
+}
+@keyframes fadein {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.pile .card.fresh {
+  animation: pop 0.5s ease;
+}
+@keyframes pop {
+  0% {
+    transform: translateY(-50%) scale(1.35);
+    box-shadow: 0 0 24px var(--gold-bright);
+  }
+  100% {
+    transform: translateY(-50%) scale(1);
+  }
 }
