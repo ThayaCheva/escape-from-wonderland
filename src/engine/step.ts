@@ -3,6 +3,7 @@ import { checkSetupPick, resolveSetup } from './setup';
 import { settle, startTurn } from './flow';
 import { playCard } from './play';
 import { log, moveToken, nameOf } from './mutate';
+import { LOCATIONS } from './board';
 import { ACTION_PROMPT_HANDLERS } from './effects/actions';
 import { EVENT_PROMPT_HANDLERS } from './effects/events';
 import type { PromptHandlers } from './effects/handlers';
@@ -33,6 +34,7 @@ function handlePrompt(s: GameState, prompt: Prompt, action: GameAction): void {
   }
   if (prompt.type === 'round-end-move') {
     if (action.type !== 'choose-location') illegal('Choose where to move, or stay.');
+    if (action.location !== null && !LOCATIONS.includes(action.location)) illegal('Choose a location on the board.');
     s.prompts.shift();
     if (action.location === null || action.location === s.players[prompt.seat].position) {
       log(s, `${nameOf(s, prompt.seat)} stays where they are.`);

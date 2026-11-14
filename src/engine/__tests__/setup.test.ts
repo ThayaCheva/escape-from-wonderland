@@ -143,3 +143,13 @@ describe('2-player variant', () => {
     expect(s.deck).toHaveLength(128);
   });
 });
+
+describe('dealing from a given deck', () => {
+  it('newGame deals from a pre-shuffled deck when one is given', async () => {
+    const { buildDeck } = await import('../cards');
+    const deck = buildDeck();
+    const s = newGame({ playerCount: 2, seed: 1, deck: [...deck] });
+    expect(s.players[0].hand.map((c) => c.id)).toEqual(deck.slice(-7).map((c) => c.id));
+    expect(s.players[1].hand.map((c) => c.id)).toEqual(deck.slice(-14, -7).map((c) => c.id));
+  });
+});

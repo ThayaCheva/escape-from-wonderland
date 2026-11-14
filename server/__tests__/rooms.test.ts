@@ -177,3 +177,32 @@ describe('game', () => {
     expect(manager.roomCount()).toBe(0);
   });
 });
+
+describe('review fixes', () => {
+  it('after the host leaves, every lobby message tells each player their own new seat', () => {
+    const { conns } = lobby(3);
+    manager.disconnect(conns[0]);
+    const l1 = conns[1].last('lobby')!;
+    const l2 = conns[2].last('lobby')!;
+    expect(l1.you).toBe(0);
+    expect(l2.you).toBe(1);
+    expect(l1.hostSeat).toBe(0);
+    // the new host can actually start
+    manager.handle(conns[1], { t: 'start' });
+    expect(conns[1].last('view')).toBeDefined();
+  });
+
+  it('the opening deal comes from the injected random source, not the 32-bit game seed', () => {
+    const deal = (seq: number[]) => {
+      let i = 0;
+      const m = new RoomManager({ now: () => 0, randomInt: (max) => seq[i++ % seq.length] % max });
+      const a = conn();
+      m.handle(a, { t: 'create', name: 'A' });
+      const b = conn();
+      m.handle(b, { t: 'join', room: a.last('joined')!.room, name: 'B' });
+      m.handle(a, { t: 'start' });
+      return a.last('view')!.view.players[0].hand.map((c) => c.id).join(',');
+    };
+    expect(deal([1, 2, 3, 4, 5, 6, 7])).not.toBe(deal([7, 6, 5, 4, 3, 2, 1]));
+  });
+});

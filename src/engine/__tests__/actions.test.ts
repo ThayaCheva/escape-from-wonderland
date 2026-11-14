@@ -255,3 +255,14 @@ describe('Exile', () => {
     expect(s.discard).toContainEqual(shadow.card);
   });
 });
+
+describe('location validation', () => {
+  it('Exile rejects locations that do not exist and the Outskirts', () => {
+    const exile = sp('exile');
+    let s = makeState({ players: [{ hand: [exile, ...filler(2)] }, { hand: filler(2), position: 'chess' }, { hand: filler(2) }], deck: deck(5) });
+    s = step(s, { type: 'play', seat: 0, cardId: exile.id });
+    s = step(s, { type: 'choose-seat', seat: 0, target: 1 });
+    expect(() => step(s, { type: 'choose-location', seat: 0, location: 'x' as never })).toThrow(IllegalActionError);
+    expect(() => step(s, { type: 'choose-location', seat: 0, location: 'outskirts' as never })).toThrow(IllegalActionError);
+  });
+});

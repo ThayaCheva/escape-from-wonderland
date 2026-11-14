@@ -161,3 +161,14 @@ describe('2-player variant', () => {
     expect(s.prompts).toEqual([{ type: 'round-end-move', seat: 0 }]);
   });
 });
+
+describe('location validation', () => {
+  it('round-end move rejects locations that do not exist and the Outskirts', () => {
+    const r9 = num('R', 9);
+    let s = makeState({ players: [{ hand: [r9, ...filler(2)] }, { hand: filler(3) }], deck: deck(10) });
+    s = step(s, { type: 'play', seat: 0, cardId: r9.id });
+    s = step(s, { type: 'pass', seat: 1 });
+    expect(() => step(s, { type: 'choose-location', seat: 0, location: 'x' as never })).toThrow(IllegalActionError);
+    expect(() => step(s, { type: 'choose-location', seat: 0, location: 'outskirts' as never })).toThrow(IllegalActionError);
+  });
+});

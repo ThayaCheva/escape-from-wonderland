@@ -1,7 +1,7 @@
 import { buildDeck, cardLabel, isNumber } from './cards';
 import { nextRandom, shuffle } from './rng';
 import { log, nameOf } from './mutate';
-import type { AliceColor, Edge, GameState, NumberCard, Player, Seat } from './types';
+import type { AliceColor, Card, Edge, GameState, NumberCard, Player, Seat } from './types';
 
 const EDGES: Record<2 | 3 | 4, Edge[]> = {
   2: ['bottom', 'top'],
@@ -21,16 +21,21 @@ export const ALICE_NAMES: Record<AliceColor, string> = {
   mint: 'Mint Alice',
 };
 
-function deal(s: GameState): void {
-  const [deck, seed] = shuffle(buildDeck(), s.seed);
-  s.seed = seed;
-  s.deck = deck;
+function deal(s: GameState, given?: Card[]): void {
+  if (given) {
+    s.deck = [...given];
+  } else {
+    const [deck, seed] = shuffle(buildDeck(), s.seed);
+    s.seed = seed;
+    s.deck = deck;
+  }
   for (const p of s.players) p.hand = s.deck.splice(s.deck.length - 7, 7);
   s.setupPicks = {};
   s.prompts = s.players.map((_, seat) => ({ type: 'setup-pick' as const, seat }));
 }
 
-export function newGame(opts: { playerCount: 2 | 3 | 4; names?: string[]; seed: number }): GameState {
+/** `deck`, if given, is an already shuffled full deck to deal from (the online server shuffles securely). */
+export function newGame(opts: { playerCount: 2 | 3 | 4; names?: string[]; seed: number; deck?: Card[] }): GameState {
   const players: Player[] = EDGES[opts.playerCount].map((edge, i) => {
     const alice = ALICE_FOR_EDGE[edge];
     return {
@@ -65,7 +70,7 @@ export function newGame(opts: { playerCount: 2 | 3 | 4; names?: string[]; seed: 
     log: [],
     seed: opts.seed >>> 0,
   };
-  deal(s);
+  deal(s, opts.deck);
   log(s, 'Each player secretly chooses a number card. Lowest goes first.');
   return s;
 }

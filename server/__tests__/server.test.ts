@@ -77,3 +77,35 @@ describe('server', () => {
     b.ws.close();
   });
 });
+
+describe('hostile input', () => {
+  it('a malformed WebSocket frame does not crash the server', async () => {
+    const { connect } = await import('node:net');
+    await new Promise<void>((resolve) => {
+      const sock = connect(server.port, '127.0.0.1', () => {
+        const lines = ['GET /ws HTTP/1.1', 'Host: x', 'Upgrade: websocket', 'Connection: Upgrade', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==', 'Sec-WebSocket-Version: 13', '', ''];
+        sock.write(lines.join(String.fromCharCode(13, 10)));
+        sock.once('data', () => {
+          sock.write(Buffer.from([0x81, 0x02, 0x68, 0x69])); // unmasked client frame: protocol violation
+          setTimeout(() => {
+            sock.destroy();
+            resolve();
+          }, 200);
+        });
+      });
+    });
+    expect(await get('/health')).toEqual({ status: 200, body: 'ok' });
+  });
+
+  it('non-object and badly shaped messages are ignored', async () => {
+    const c = client();
+    await c.open;
+    c.ws.send('42');
+    c.ws.send('null');
+    c.send({ t: 'action', action: { type: 'choose-location', seat: 0, location: { evil: true } } });
+    c.send({ t: 'join', room: 12345, name: ['x'] });
+    expect((await c.next('error')).message).toBe('No room with that code.');
+    expect(await get('/health')).toEqual({ status: 200, body: 'ok' });
+    c.ws.close();
+  });
+});

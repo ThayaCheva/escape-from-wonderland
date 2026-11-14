@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { actingSeat } from '../engine/step';
 import type { GameAction, GameState, Seat } from '../engine/types';
 import { tokenKey, type ClientMsg, type LobbyPlayer, type ServerMsg } from './protocol';
+import { forgetSeatOnLeave, statusAfterError, type OnlineStatus } from './onlineState';
 
-export type OnlineStatus = 'idle' | 'connecting' | 'lobby' | 'game' | 'replaced';
+export type { OnlineStatus };
 
 export interface OnlineState {
   status: OnlineStatus;
@@ -75,7 +76,8 @@ export function useOnlineGame() {
         setState((s) => ({ ...s, room: msg.room, seat: msg.seat, status: s.status === 'game' ? 'game' : 'lobby' }));
         break;
       case 'lobby':
-        setState((s) => ({ ...s, status: 'lobby', room: msg.room, lobby: { players: msg.players, hostSeat: msg.hostSeat } }));
+        // seats shift when someone leaves the lobby, so the server tells each player their seat every time
+        setState((s) => ({ ...s, status: 'lobby', room: msg.room, seat: msg.you, lobby: { players: msg.players, hostSeat: msg.hostSeat } }));
         break;
       case 'view':
         setState((s) => ({ ...s, status: 'game', view: msg.view, seat: msg.seat, connected: msg.connected }));
@@ -89,7 +91,7 @@ export function useOnlineGame() {
           setState({ ...IDLE, error: { message: msg.message, n: ++errors.current } });
           return;
         }
-        setState((s) => ({ ...s, error: { message: msg.message, n: ++errors.current } }));
+        setState((s) => ({ ...s, status: statusAfterError(s.status), error: { message: msg.message, n: ++errors.current } }));
         break;
       case 'replaced':
         active.current = false;
@@ -147,9 +149,15 @@ export function useOnlineGame() {
   const start = useCallback(() => send({ t: 'start' }), [send]);
   const act = useCallback((action: GameAction) => send({ t: 'action', action }), [send]);
 
+  const statusRef = useRef<OnlineStatus>('idle');
+  const gameOverRef = useRef(false);
+  statusRef.current = state.status;
+  gameOverRef.current = state.view?.phase === 'game-over';
+
   const leave = useCallback(() => {
     active.current = false;
-    if (room.current) storeToken(room.current, null);
+    // keep the seat during a running game so reopening the link brings you back
+    if (room.current && forgetSeatOnLeave(statusRef.current, gameOverRef.current)) storeToken(room.current, null);
     room.current = null;
     ws.current?.close();
     ws.current = null;

@@ -60,7 +60,9 @@ export function App() {
             online.act(a);
             return null;
           }}
-          onQuit={toTitle}
+          onQuit={() => {
+            if (window.confirm('Leave this game? You can come back by opening the same link again.')) toTitle();
+          }}
           viewerSeat={online.seat}
           connected={online.connected}
           notice={online.error}

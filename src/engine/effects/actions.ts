@@ -4,6 +4,7 @@ import { drawAndLog, discardFromHand, log, moveToken, nameOf, placeNumber, remov
 import { playCard } from '../play';
 import { isImmune, nextUpSeat, playerTargets } from '../rules';
 import { shuffle } from '../rng';
+import { LOCATIONS } from '../board';
 import type { ActionName, GameAction, GameState, NumberCard, Prompt, Seat, SpecialCard } from '../types';
 import type { PromptHandlers } from './handlers';
 
@@ -160,7 +161,7 @@ export const ACTION_PROMPT_HANDLERS: PromptHandlers = {
 
   'exile-location': (s, prompt, action) => {
     const a = expect(action, 'choose-location', 'Choose a location.');
-    if (a.location === null || a.location === s.players[prompt.target].position) {
+    if (a.location === null || !LOCATIONS.includes(a.location) || a.location === s.players[prompt.target].position) {
       illegal('Choose a different location.');
     }
     s.prompts.shift();

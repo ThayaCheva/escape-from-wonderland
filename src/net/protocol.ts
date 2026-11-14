@@ -17,7 +17,7 @@ export interface LobbyPlayer {
 
 export type ServerMsg =
   | { t: 'joined'; room: string; seat: Seat; token: string }
-  | { t: 'lobby'; room: string; players: LobbyPlayer[]; hostSeat: Seat }
+  | { t: 'lobby'; room: string; players: LobbyPlayer[]; hostSeat: Seat; you: Seat }
   | { t: 'view'; view: GameState; seat: Seat; connected: boolean[] }
   | { t: 'error'; message: string }
   | { t: 'replaced' };

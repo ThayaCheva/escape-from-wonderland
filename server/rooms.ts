@@ -1,5 +1,6 @@
 // Rooms, seats and the authoritative game state for each room. No networking here.
 import { newGame, seatAlices, ALICE_NAMES } from '../src/engine/setup';
+import { buildDeck } from '../src/engine/cards';
 import { IllegalActionError, step } from '../src/engine/step';
 import { viewFor } from '../src/engine/view';
 import { ROOM_LETTERS, type ClientMsg, type ServerMsg } from '../src/net/protocol';
@@ -144,7 +145,9 @@ export class RoomManager {
     room.game = newGame({
       playerCount: count as 2 | 3 | 4,
       names: room.seats.map((s) => s.name),
-      seed: this.opts.randomInt(2 ** 31),
+      seed: this.opts.randomInt(2 ** 32),
+      // the opening deal uses the server's secure randomness, not the engine's guessable 32-bit seed
+      deck: this.shuffle(buildDeck()),
     });
     this.broadcastViews(room);
   }
@@ -153,6 +156,8 @@ export class RoomManager {
     const at = this.byConn.get(conn.id);
     const room = at ? this.rooms.get(at.code) : undefined;
     if (!at || !room || !room.game || !action || action.seat !== at.seat) return;
+    // a fresh secret seed before every move, so later engine shuffles can't be predicted
+    room.game.seed = this.opts.randomInt(2 ** 32);
     try {
       room.game = step(room.game, action);
     } catch (e) {
@@ -175,6 +180,16 @@ export class RoomManager {
     this.broadcastLobby(room);
   }
 
+  /** Fisher–Yates with the injected (secure) random source. */
+  private shuffle<T>(items: T[]): T[] {
+    const out = [...items];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = this.opts.randomInt(i + 1);
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
   /** A connection that is already seated somewhere leaves that seat first. */
   private detach(conn: Conn): void {
     if (this.byConn.has(conn.id)) this.disconnect(conn);
@@ -193,7 +208,7 @@ export class RoomManager {
       const alice = alices[i] ?? 'gold';
       return { name: s.name || ALICE_NAMES[alice], alice, connected: s.conn !== null };
     });
-    for (const s of room.seats) s.conn?.send({ t: 'lobby', room: room.code, players, hostSeat: room.hostSeat });
+    room.seats.forEach((s, you) => s.conn?.send({ t: 'lobby', room: room.code, players, hostSeat: room.hostSeat, you }));
   }
 
   private broadcastViews(room: Room): void {

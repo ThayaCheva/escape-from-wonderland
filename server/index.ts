@@ -59,8 +59,11 @@ export async function startServer(opts: { port: number; distDir: string }): Prom
     serveStatic(opts.distDir, req, res).catch(() => res.writeHead(500).end('error'));
   });
 
-  const wss = new WebSocketServer({ server: http, path: '/ws' });
+  // small messages only; a bad frame from one client must never take the process down
+  const wss = new WebSocketServer({ server: http, path: '/ws', maxPayload: 64 * 1024 });
+  wss.on('error', (e) => console.error('websocket server error', e));
   wss.on('connection', (ws: WebSocket) => {
+    ws.on('error', () => ws.terminate());
     const conn: Conn = {
       id: randomUUID(),
       send: (msg) => {
@@ -74,6 +77,7 @@ export async function startServer(opts: { port: number; distDir: string }): Prom
       } catch {
         return;
       }
+      if (!msg || typeof msg !== 'object') return;
       try {
         manager.handle(conn, msg);
       } catch (e) {
