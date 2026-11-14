@@ -5,6 +5,7 @@ import { checkPlay } from '../../engine/rules';
 import { CARD_DEFS, isNumber } from '../../engine/cards';
 import { dropAction, hasLegalPlay, lastPlayLine, locationLine, nextSeatToAct } from '../info';
 import { Card } from './Card';
+import { setSoundOn, soundOn } from '../sound';
 import { LOCATIONS } from '../../engine/board';
 import { BACKGROUND_IMAGE } from '../assets';
 import { EDGE_ROTATION, edgeFor } from '../layout';
@@ -29,6 +30,8 @@ interface Props {
   connected?: boolean[];
   /** A message to flash (e.g. an error the server sent back). */
   notice?: { message: string; n: number } | null;
+  /** Online: this browser's connection is down. */
+  offline?: boolean;
 }
 
 const WAITING_FOR: Partial<Record<string, string>> = {
@@ -67,7 +70,7 @@ const BOARD_PROMPTS = new Set(['exile-location', 'round-end-move', 'vorpal-targe
 const MULTI_SELECT = new Set(['eat-me', 'discard']);
 const SINGLE_SELECT = new Set(['execution-choose', 'vines-give']);
 
-export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }: Props) {
+export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, offline }: Props) {
   const [gate, setGate] = useState<UiGate>({ confirmedSeat: null, peeked: false });
   const [selected, setSelected] = useState<string[]>([]);
   const [preview, setPreview] = useState<string | null>(null);
@@ -78,6 +81,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
   const [confirmPass, setConfirmPass] = useState(false);
   const [callout, setCallout] = useState<string | null>(null);
   const [freshPileId, setFreshPileId] = useState<string | null>(null);
+  const [sound, setSound] = useState(soundOn);
   const suppressClick = useRef(false);
   const lastSeen = useRef<{ play: string | null; pileTop: string | null }>({ play: null, pileTop: null });
 
@@ -319,6 +323,18 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
         <button className="btn small" onClick={() => setShowRules(true)}>
           Rules
         </button>
+        {online ? (
+          <button
+            className="btn small"
+            title="A short chime when it becomes your turn"
+            onClick={() => {
+              setSoundOn(!sound);
+              setSound(!sound);
+            }}
+          >
+            Sound: {sound ? 'on' : 'off'}
+          </button>
+        ) : null}
         <button className="btn small" onClick={onQuit}>
           Menu
         </button>
@@ -384,6 +400,11 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
       {drag ? (
         <div className="drag-ghost" style={{ left: drag.x, top: drag.y }}>
           <Card card={drag.card} faceUp size="hand-lg" />
+        </div>
+      ) : null}
+      {offline ? (
+        <div className="offline-bar" data-testid="offline">
+          Reconnecting…
         </div>
       ) : null}
       {toast ? <div className="toast">{toast}</div> : null}

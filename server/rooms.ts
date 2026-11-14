@@ -232,7 +232,7 @@ export class RoomManager {
     if (!game) return;
     const connected = room.seats.map((s) => s.conn !== null);
     room.seats.forEach((s, seat) => {
-      s.conn?.send({ t: 'view', view: viewFor(game, seat), seat, connected });
+      s.conn?.send({ t: 'view', view: viewFor(game, seat), seat, connected, hostSeat: room.hostSeat });
     });
   }
 }

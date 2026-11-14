@@ -826,3 +826,17 @@ body,
 .toast {
   top: 205px !important;
 }
+
+.offline-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 70;
+  text-align: center;
+  background: var(--red);
+  color: #fff;
+  font-family: var(--heading);
+  font-size: 18px;
+  padding: 4px;
+}

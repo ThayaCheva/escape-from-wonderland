@@ -237,3 +237,11 @@ describe('rematch', () => {
     expect(v.prompts[0]).toEqual({ type: 'setup-pick', seat: 0 });
   });
 });
+
+describe('host in game views', () => {
+  it('every view says who the host is, so a reloaded host still gets Play again', () => {
+    const { conns } = lobby(2);
+    manager.handle(conns[0], { t: 'start' });
+    expect(conns[1].last('view')!.hostSeat).toBe(0);
+  });
+});

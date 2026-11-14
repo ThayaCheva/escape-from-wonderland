@@ -3,6 +3,7 @@ import { actingSeat } from '../engine/step';
 import type { GameAction, GameState, Seat } from '../engine/types';
 import { tokenKey, type ClientMsg, type LobbyPlayer, type ServerMsg } from './protocol';
 import { forgetSeatOnLeave, statusAfterError, type OnlineStatus } from './onlineState';
+import { chime, shouldChime, soundOn } from '../ui/sound';
 
 export type { OnlineStatus };
 
@@ -15,9 +16,23 @@ export interface OnlineState {
   connected: boolean[];
   /** Latest error from the server, with a counter so repeats still show. */
   error: { message: string; n: number } | null;
+  /** Whether this browser's connection to the server is currently open. */
+  socketOpen: boolean;
+  /** True while reopening a link to take back a stored seat. */
+  rejoining: boolean;
 }
 
-const IDLE: OnlineState = { status: 'idle', room: null, seat: null, lobby: null, view: null, connected: [], error: null };
+const IDLE: OnlineState = {
+  status: 'idle',
+  room: null,
+  seat: null,
+  lobby: null,
+  view: null,
+  connected: [],
+  error: null,
+  socketOpen: false,
+  rejoining: false,
+};
 const BASE_TITLE = 'Escape from Wonderland';
 
 function socketUrl(): string {
@@ -73,14 +88,21 @@ export function useOnlineGame() {
         resuming.current = false;
         storeToken(msg.room, msg.token);
         setRoomInUrl(msg.room);
-        setState((s) => ({ ...s, room: msg.room, seat: msg.seat, status: s.status === 'game' ? 'game' : 'lobby' }));
+        setState((s) => ({ ...s, room: msg.room, seat: msg.seat, rejoining: false, status: s.status === 'game' ? 'game' : 'lobby' }));
         break;
       case 'lobby':
         // seats shift when someone leaves the lobby, so the server tells each player their seat every time
         setState((s) => ({ ...s, status: 'lobby', room: msg.room, seat: msg.you, lobby: { players: msg.players, hostSeat: msg.hostSeat } }));
         break;
       case 'view':
-        setState((s) => ({ ...s, status: 'game', view: msg.view, seat: msg.seat, connected: msg.connected }));
+        setState((s) => ({
+          ...s,
+          status: 'game',
+          view: msg.view,
+          seat: msg.seat,
+          connected: msg.connected,
+          lobby: { players: s.lobby?.players ?? [], hostSeat: msg.hostSeat },
+        }));
         break;
       case 'error':
         if (resuming.current) {
@@ -88,7 +110,7 @@ export function useOnlineGame() {
           resuming.current = false;
           if (room.current) storeToken(room.current, null);
           room.current = null;
-          setState({ ...IDLE, error: { message: msg.message, n: ++errors.current } });
+          setState({ ...IDLE, socketOpen: true, error: { message: msg.message, n: ++errors.current } });
           return;
         }
         setState((s) => ({ ...s, status: statusAfterError(s.status), error: { message: msg.message, n: ++errors.current } }));
@@ -107,6 +129,7 @@ export function useOnlineGame() {
     ws.current = socket;
     socket.onopen = () => {
       retry.current = 0;
+      setState((s) => ({ ...s, socketOpen: true }));
       const token = room.current ? storedToken(room.current) : null;
       if (room.current && token) {
         resuming.current = true;
@@ -125,6 +148,7 @@ export function useOnlineGame() {
     };
     socket.onclose = () => {
       if (ws.current === socket) ws.current = null;
+      setState((s) => ({ ...s, socketOpen: false }));
       if (!active.current) return;
       const delay = Math.min(8000, 1000 * 2 ** retry.current++);
       setTimeout(() => active.current && connect(), delay);
@@ -147,6 +171,7 @@ export function useOnlineGame() {
   const create = useCallback((name: string) => begin({ t: 'create', name }), [begin]);
   const join = useCallback((code: string, name: string) => begin({ t: 'join', room: code.trim().toUpperCase(), name }), [begin]);
   const start = useCallback(() => send({ t: 'start' }), [send]);
+  const rematch = useCallback(() => send({ t: 'rematch' }), [send]);
   const act = useCallback((action: GameAction) => send({ t: 'action', action }), [send]);
 
   const statusRef = useRef<OnlineStatus>('idle');
@@ -170,6 +195,7 @@ export function useOnlineGame() {
     const code = roomFromUrl();
     if (code && storedToken(code)) {
       room.current = code;
+      setState((s) => ({ ...s, rejoining: true }));
       begin(null);
     }
   }, [begin]);
@@ -180,11 +206,14 @@ export function useOnlineGame() {
     return () => clearInterval(t);
   }, [send]);
 
-  // tell a player who has tabbed out that it's their move
+  // tell a player who has tabbed out that it's their move (title, and the chime if turned on)
+  const wasMine = useRef(false);
   useEffect(() => {
-    const mine = state.status === 'game' && state.view && state.view.phase !== 'game-over' && actingSeat(state.view) === state.seat;
+    const mine = !!(state.status === 'game' && state.view && state.view.phase !== 'game-over' && actingSeat(state.view) === state.seat);
     document.title = mine ? `Your turn — ${BASE_TITLE}` : BASE_TITLE;
+    if (shouldChime(wasMine.current, mine, soundOn())) chime();
+    wasMine.current = mine;
   }, [state]);
 
-  return { ...state, create, join, start, act, leave };
+  return { ...state, create, join, start, rematch, act, leave };
 }

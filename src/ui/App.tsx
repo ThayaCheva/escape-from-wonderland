@@ -50,7 +50,23 @@ export function App() {
   }
   if (online.status === 'game' && online.view && online.seat !== null) {
     if (online.view.phase === 'game-over') {
-      return <EndScreen state={online.view} onNew={toTitle} newLabel="Back to title" />;
+      const isHost = online.lobby?.hostSeat === online.seat;
+      return (
+        <EndScreen
+          state={online.view}
+          onNew={toTitle}
+          newLabel="Back to title"
+          extra={
+            isHost ? (
+              <button className="btn big" onClick={online.rematch}>
+                Play again
+              </button>
+            ) : (
+              <p className="muted">Waiting for the host to start a new game…</p>
+            )
+          }
+        />
+      );
     }
     return (
       <ErrorBoundary onReset={toTitle}>
@@ -66,6 +82,7 @@ export function App() {
           viewerSeat={online.seat}
           connected={online.connected}
           notice={online.error}
+          offline={!online.socketOpen}
         />
       </ErrorBoundary>
     );
@@ -82,6 +99,9 @@ export function App() {
         onLeave={toTitle}
       />
     );
+  }
+  if (online.status === 'connecting' && online.rejoining) {
+    return <OnlineStatusScreen title="Reconnecting…" detail="Getting your seat back. If the server was asleep this can take up to a minute." onBack={toTitle} />;
   }
   if (screen === 'create' || screen === 'join') {
     return (
