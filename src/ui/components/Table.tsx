@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Card as CardT, Edge, GameAction, GameState, LocationId } from '../../engine/types';
 import { actingSeat } from '../../engine/step';
 import { checkPlay } from '../../engine/rules';
-import { isNumber } from '../../engine/cards';
+import { CARD_DEFS, isNumber } from '../../engine/cards';
+import { dropAction, hasLegalPlay, lastPlayLine, locationLine, nextSeatToAct } from '../info';
+import { Card } from './Card';
 import { LOCATIONS } from '../../engine/board';
 import { BACKGROUND_IMAGE } from '../assets';
 import { EDGE_ROTATION, edgeFor } from '../layout';
@@ -70,6 +72,13 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
   const [preview, setPreview] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [drag, setDrag] = useState<{ card: CardT; x: number; y: number; over: boolean } | null>(null);
+  const [hoverCard, setHoverCard] = useState<CardT | null>(null);
+  const [confirmPass, setConfirmPass] = useState(false);
+  const [callout, setCallout] = useState<string | null>(null);
+  const [freshPileId, setFreshPileId] = useState<string | null>(null);
+  const suppressClick = useRef(false);
+  const lastSeen = useRef<{ play: string | null; pileTop: string | null }>({ play: null, pileTop: null });
 
   const prompt = state.prompts[0];
   const acting = actingSeat(state);
@@ -107,10 +116,63 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
     if (err) setToast(err);
   };
 
+  // a short callout and a "pop" on the pile whenever someone plays a card
+  const newest = state.log[state.log.length - 1];
+  const pileTop = state.pile[state.pile.length - 1]?.card.id ?? null;
+  useEffect(() => {
+    const play = lastPlayLine(state.log);
+    const seen = lastSeen.current;
+    if (seen.play !== null && play && play !== seen.play) setCallout(play);
+    if (seen.pileTop !== null && pileTop && pileTop !== seen.pileTop) setFreshPileId(pileTop);
+    lastSeen.current = { play, pileTop };
+  }, [newest, state.log.length, pileTop]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!callout) return;
+    const t = setTimeout(() => setCallout(null), 4000);
+    return () => clearTimeout(t);
+  }, [callout]);
+
+  useEffect(() => setConfirmPass(false), [acting, prompt?.type]);
+
+  const overBoard = (x: number, y: number) => {
+    const r = document.querySelector('[data-testid="board"]')?.getBoundingClientRect();
+    return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  };
+
+  /** Press on a card in your hand: a click previews it, a drag onto the board plays it. */
+  function onCardPointerDown(card: CardT, e: React.PointerEvent) {
+    if (e.button !== 0 || handoff || faceSeat !== acting) return;
+    const start = { x: e.clientX, y: e.clientY };
+    const seat = acting;
+    const snapshot = state;
+    let dragging = false;
+    const move = (ev: PointerEvent) => {
+      if (!dragging && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 6) {
+        dragging = true;
+        setHoverCard(null);
+      }
+      if (dragging) setDrag({ card, x: ev.clientX, y: ev.clientY, over: overBoard(ev.clientX, ev.clientY) });
+    };
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!dragging) return;
+      suppressClick.current = true;
+      setTimeout(() => (suppressClick.current = false), 0);
+      setDrag(null);
+      if (!overBoard(ev.clientX, ev.clientY)) return;
+      const result = dropAction(snapshot, seat, card.id);
+      if ('action' in result) send(result.action);
+      else setToast(result.reason);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
   const previewCard = preview ? state.players[acting].hand.find((c) => c.id === preview) ?? null : null;
 
   function onOwnCardClick(card: CardT) {
-    if (handoff || faceSeat !== acting) return;
+    if (suppressClick.current || handoff || faceSeat !== acting) return;
     if (!prompt || prompt.type === 'drink-me-extra' || prompt.type === 'setup-pick') {
       setPreview(card.id);
       return;
@@ -162,6 +224,10 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
   const targetSeats = canAct && prompt?.type === 'choose-player' ? prompt.options : [];
 
   const actingPlayer = state.players[acting];
+  const dragDef = drag && !isNumber(drag.card) ? CARD_DEFS[drag.card.name] : null;
+  const dragLocation = dragDef?.kind === 'event' ? dragDef.location : null;
+  const hovered =
+    hoverCard && !drag && faceSeat !== null && state.players[faceSeat].hand.some((c) => c.id === hoverCard.id) ? hoverCard : null;
   const controls = (seat: number) => {
     if (seat !== acting || !canAct) return null;
     if (!prompt) {
@@ -172,8 +238,19 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
               {gate.peeked ? 'Hide' : 'Peek'}
             </button>
           )}
-          <button className="btn small" onClick={() => send({ type: 'pass', seat })}>
-            {actingPlayer.down ? 'Stay down' : 'Pass'}
+          <button
+            className={`btn small${confirmPass ? ' confirm' : ''}`}
+            onClick={() => {
+              // passing while holding a playable card asks once more
+              if (!confirmPass && !actingPlayer.down && hasLegalPlay(state, seat)) {
+                setConfirmPass(true);
+                setTimeout(() => setConfirmPass(false), 3000);
+                return;
+              }
+              send({ type: 'pass', seat });
+            }}
+          >
+            {confirmPass ? 'Pass anyway?' : actingPlayer.down ? 'Stay down' : 'Pass'}
           </button>
         </>
       );
@@ -189,6 +266,10 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
         onLocationClick={onLocationClick}
         selectableActive={selectableActive}
         onActiveClick={(i) => send({ type: 'choose-active', seat: acting, index: i })}
+        dropTarget={drag?.over ?? false}
+        glowLocations={dragLocation ? [dragLocation] : []}
+        freshPileId={freshPileId}
+        callout={callout}
       />
       {state.players.map((_, seat) => (
         <PlayerEdge
@@ -206,6 +287,11 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
           selectedIds={seat === acting ? selected : []}
           isDimmed={seat === acting ? dimmed : undefined}
           onCardClick={seat === acting && faceSeat === acting ? onOwnCardClick : undefined}
+          onCardPointerDown={seat === acting && faceSeat === acting ? onCardPointerDown : undefined}
+          onCardHover={faceSeat === seat ? setHoverCard : undefined}
+          cardSize={online && seat === viewerSeat ? 'hand-lg' : 'hand'}
+          where={locationLine(state, seat, seat === (online ? viewerSeat : acting))}
+          next={state.phase === 'playing' && seat === nextSeatToAct(state) && seat !== state.current}
           controls={controls(seat)}
         />
       ))}
@@ -266,6 +352,22 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }
             : prompt && WAITING_FOR[prompt.type]
               ? `${state.players[acting].name} ${WAITING_FOR[prompt.type]}…`
               : `Waiting for ${state.players[acting].name}…`}
+        </div>
+      ) : null}
+      {hovered ? (
+        online ? (
+          <div className="hover-preview" style={{ left: 380, top: 268 }}>
+            <Card card={hovered} faceUp size="preview" />
+          </div>
+        ) : (
+          <div className="hover-preview" style={{ left: 800, top: 450, transform: `translate(-50%, -50%) rotate(${rotation}deg)` }}>
+            <Card card={hovered} faceUp size="preview" />
+          </div>
+        )
+      ) : null}
+      {drag ? (
+        <div className="drag-ghost" style={{ left: drag.x, top: drag.y }}>
+          <Card card={drag.card} faceUp size="hand-lg" />
         </div>
       ) : null}
       {toast ? <div className="toast">{toast}</div> : null}

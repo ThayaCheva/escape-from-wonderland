@@ -45,10 +45,17 @@ interface Props {
   selectedIds?: string[];
   isDimmed?: (card: CardT) => boolean;
   onCardClick?: (card: CardT, index: number) => void;
+  onCardPointerDown?: (card: CardT, e: React.PointerEvent) => void;
+  onCardHover?: (card: CardT | null) => void;
+  cardSize?: 'hand' | 'hand-lg';
+  /** Extra line under the name (location, and for you its effect). */
+  where?: string;
+  /** Plays right after the current player. */
+  next?: boolean;
   controls?: ReactNode;
 }
 
-export function PlayerEdge({ state, seat, edge: edgeOverride, upright, viewer, connected = true, faceUp, glowing, targetable, onPlateClick, selectedIds, isDimmed, onCardClick, controls }: Props) {
+export function PlayerEdge({ state, seat, edge: edgeOverride, upright, viewer, connected = true, faceUp, glowing, targetable, onPlateClick, selectedIds, isDimmed, onCardClick, onCardPointerDown, onCardHover, cardSize, where, next, controls }: Props) {
   const player = state.players[seat];
   const edge = edgeOverride ?? player.edge;
   const box = EDGE_BOXES[edge];
@@ -80,8 +87,9 @@ export function PlayerEdge({ state, seat, edge: edgeOverride, upright, viewer, c
           <div className="plate-count">
             {player.hand.length} card{player.hand.length === 1 ? '' : 's'}
           </div>
+          {where ? <div className="plate-where">{where}</div> : null}
           <div className="plate-chips">
-            {playerStatus(state, seat, connected).map((c) => (
+            {[...playerStatus(state, seat, connected), ...(next ? ['Next'] : [])].map((c) => (
               <span key={c} className="chip">
                 {c}
               </span>
@@ -97,6 +105,9 @@ export function PlayerEdge({ state, seat, edge: edgeOverride, upright, viewer, c
         selectedIds={selectedIds}
         isDimmed={isDimmed}
         onCardClick={onCardClick}
+        onCardPointerDown={onCardPointerDown}
+        onCardHover={onCardHover}
+        size={cardSize}
       />
     </div>
   );

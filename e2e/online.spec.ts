@@ -73,3 +73,19 @@ test('2 players can play a round online', async ({ browser }) => {
   expect((await round2()) || (await gameOver(pages))).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('dragging a card from your hand onto the board plays it', async ({ browser }) => {
+  const { pages, errors } = await openPlayers(browser, 2);
+  const host = pages[0];
+  // setup: the host chooses a starting card by dragging it onto the board
+  const card = host.locator('.player-edge[data-viewer="true"] .card[data-face="up"]:not(.dimmed)').first();
+  const box = (await card.boundingBox())!;
+  const board = (await host.getByTestId('board').boundingBox())!;
+  await host.mouse.move(box.x + 8, box.y + box.height / 2);
+  await host.mouse.down();
+  await host.mouse.move(board.x + board.width / 2, board.y + board.height / 2, { steps: 8 });
+  await expect(host.locator('.drag-ghost')).toBeVisible();
+  await host.mouse.up();
+  await expect(host.getByTestId('waiting')).toContainText('choosing a starting card');
+  expect(errors).toEqual([]);
+});

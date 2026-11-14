@@ -65,7 +65,7 @@ export async function randomMove(page: Page): Promise<boolean> {
     await buttons.nth((await buttons.count()) - 1).click();
     return true;
   }
-  const pass = edge.getByRole('button', { name: /^(Pass|Stay down)$/ });
+  const pass = edge.getByRole('button', { name: /^(Pass|Stay down|Pass anyway\?)$/ });
   if (!(await pass.count())) return false;
   const peek = edge.getByRole('button', { name: 'Peek' });
   if (await peek.count()) await peek.click();
