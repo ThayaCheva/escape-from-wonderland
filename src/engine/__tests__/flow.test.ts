@@ -151,3 +151,13 @@ describe('specials', () => {
     expect(t.discard.map((c) => c.kind === 'number' ? '' : c.name)).toEqual(['rq-decree']);
   });
 });
+
+describe('2-player variant', () => {
+  it('a single pass ends the round', () => {
+    const r9 = num('R', 9);
+    let s = makeState({ players: [{ hand: [r9, ...filler(2)] }, { hand: filler(3) }], deck: deck(10) });
+    s = step(s, { type: 'play', seat: 0, cardId: r9.id });
+    s = step(s, { type: 'pass', seat: 1 });
+    expect(s.prompts).toEqual([{ type: 'round-end-move', seat: 0 }]);
+  });
+});

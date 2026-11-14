@@ -3,7 +3,11 @@ import { nextRandom, shuffle } from './rng';
 import { log, nameOf } from './mutate';
 import type { AliceColor, Edge, GameState, NumberCard, Player, Seat } from './types';
 
-const EDGES: Record<3 | 4, Edge[]> = { 3: ['bottom', 'left', 'right'], 4: ['bottom', 'left', 'top', 'right'] };
+const EDGES: Record<2 | 3 | 4, Edge[]> = {
+  2: ['bottom', 'top'],
+  3: ['bottom', 'left', 'right'],
+  4: ['bottom', 'left', 'top', 'right'],
+};
 export const ALICE_FOR_EDGE: Record<Edge, AliceColor> = { bottom: 'gold', left: 'rose', top: 'blue', right: 'mint' };
 const ALICE_NAMES: Record<AliceColor, string> = {
   gold: 'Gold Alice',
@@ -21,7 +25,7 @@ function deal(s: GameState): void {
   s.prompts = s.players.map((_, seat) => ({ type: 'setup-pick' as const, seat }));
 }
 
-export function newGame(opts: { playerCount: 3 | 4; names?: string[]; seed: number }): GameState {
+export function newGame(opts: { playerCount: 2 | 3 | 4; names?: string[]; seed: number }): GameState {
   const players: Player[] = EDGES[opts.playerCount].map((edge, i) => {
     const alice = ALICE_FOR_EDGE[edge];
     return {

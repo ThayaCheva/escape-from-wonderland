@@ -39,6 +39,13 @@ describe('save', () => {
     expect(store.data[SAVE_KEY]).toBeUndefined();
   });
 
+  it('round-trips a 2-player game', () => {
+    const store = memory();
+    const s = newGame({ playerCount: 2, seed: 4 });
+    saveGame(s, store);
+    expect(loadGame(store)).toEqual(s);
+  });
+
   it('returns null when nothing is saved', () => {
     expect(loadGame(memory())).toBeNull();
   });

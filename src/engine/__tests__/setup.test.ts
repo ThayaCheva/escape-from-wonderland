@@ -134,3 +134,12 @@ describe('log', () => {
     expect(s.log[199]).toBe('line 249');
   });
 });
+
+describe('2-player variant', () => {
+  it('seats 2 players opposite each other as Gold and Blue', () => {
+    const s = newGame({ playerCount: 2, seed: 7 });
+    expect(s.players.map((p) => p.edge)).toEqual(['bottom', 'top']);
+    expect(s.players.map((p) => p.alice)).toEqual(['gold', 'blue']);
+    expect(s.deck).toHaveLength(128);
+  });
+});

@@ -5,7 +5,7 @@ import type { CardName, GameAction, GameState, Position } from '../engine/types'
 import { clearSave, loadGame, saveGame } from './save';
 
 export interface StartOptions {
-  playerCount: 3 | 4;
+  playerCount: 2 | 3 | 4;
   names: string[];
 }
 

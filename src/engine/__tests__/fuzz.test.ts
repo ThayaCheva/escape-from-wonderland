@@ -8,7 +8,7 @@ describe('random play', () => {
     let finished = 0;
     for (let seed = 1; seed <= 200; seed++) {
       const rand = makeRand(seed * 7919);
-      let s = newGame({ playerCount: seed % 2 ? 4 : 3, seed });
+      let s = newGame({ playerCount: ([2, 3, 4] as const)[seed % 3], seed });
       for (let i = 0; i < 3000 && s.phase !== 'game-over'; i++) {
         const action = randomAction(s, rand);
         if (!action) throw new Error(`seed ${seed}: no legal action for prompt ${JSON.stringify(s.prompts[0])}`);

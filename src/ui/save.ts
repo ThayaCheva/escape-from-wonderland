@@ -27,7 +27,7 @@ function looksLikeGame(g: unknown): boolean {
   const arrays = ['players', 'prompts', 'deck', 'discard', 'pile', 'active', 'log'];
   if (s.version !== 1 || !arrays.every((k) => Array.isArray(s[k]))) return false;
   const players = s.players as Array<Record<string, unknown>>;
-  if (players.length < 3 || players.length > 4) return false;
+  if (players.length < 2 || players.length > 4) return false;
   if (!players.every((p) => p && Array.isArray(p.hand) && typeof p.edge === 'string' && typeof p.position === 'string')) {
     return false;
   }

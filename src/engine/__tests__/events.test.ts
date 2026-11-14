@@ -221,3 +221,12 @@ describe('review fixes', () => {
     expect(after).not.toEqual(theirs.map((c) => c.id));
   });
 });
+
+describe('2-player variant', () => {
+  it("Mad Hatter's Party swaps the two hands", () => {
+    const theirs = filler(3);
+    const { s } = playEvent('mh-party', 'mad-hatter', [{ hand: theirs }], { userHand: filler(1) });
+    expect(s.players[0].hand).toEqual(theirs);
+    expect(s.players[1].hand).toHaveLength(1);
+  });
+});

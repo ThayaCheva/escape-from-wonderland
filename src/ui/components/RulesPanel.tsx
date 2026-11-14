@@ -61,6 +61,8 @@ export function RulesPanel({ onClose }: { onClose: () => void }) {
             Alice to any location. The pile and active cards are cleared, everyone draws 1, and the player still standing
             starts the next round.
           </p>
+          <h2>2 players (variant)</h2>
+          <p>The official game is for 3–4 players. With 2, everything works the same, but a round ends as soon as either player passes.</p>
           <h2>Cards</h2>
           <dl>
             {CARD_RULES.map(([name, text]) => (

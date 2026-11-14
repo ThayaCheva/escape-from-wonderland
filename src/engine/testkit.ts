@@ -30,7 +30,7 @@ export function pileOf(card: NumberCard, seat: Seat = 0, modifier: -1 | 0 | 1 = 
   return { card, seat, modifier, effective: card.value + modifier };
 }
 
-const EDGES: Record<number, Edge[]> = { 3: ['bottom', 'left', 'right'], 4: ['bottom', 'left', 'top', 'right'] };
+const EDGES: Record<number, Edge[]> = { 2: ['bottom', 'top'], 3: ['bottom', 'left', 'right'], 4: ['bottom', 'left', 'top', 'right'] };
 const ALICE: Record<Edge, AliceColor> = { bottom: 'gold', left: 'rose', top: 'blue', right: 'mint' };
 
 export function makeState(opts: {

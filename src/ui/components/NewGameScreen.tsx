@@ -4,12 +4,16 @@ import type { AliceColor } from '../../engine/types';
 import type { StartOptions } from '../useGame';
 import { Stage } from './Stage';
 
-const SEATS: Record<3 | 4, Array<{ alice: AliceColor; label: string; where: string }>> = {
+const SEATS: Record<2 | 3 | 4, Array<{ alice: AliceColor; label: string; where: string }>> = {
   4: [
     { alice: 'gold', label: 'Gold Alice', where: 'bottom' },
     { alice: 'rose', label: 'Rose Alice', where: 'left' },
     { alice: 'blue', label: 'Blue Alice', where: 'top' },
     { alice: 'mint', label: 'Mint Alice', where: 'right' },
+  ],
+  2: [
+    { alice: 'gold', label: 'Gold Alice', where: 'bottom' },
+    { alice: 'blue', label: 'Blue Alice', where: 'top' },
   ],
   3: [
     { alice: 'gold', label: 'Gold Alice', where: 'bottom' },
@@ -19,7 +23,7 @@ const SEATS: Record<3 | 4, Array<{ alice: AliceColor; label: string; where: stri
 };
 
 export function NewGameScreen({ onStart, onBack }: { onStart: (o: StartOptions) => void; onBack: () => void }) {
-  const [count, setCount] = useState<3 | 4>(4);
+  const [count, setCount] = useState<2 | 3 | 4>(4);
   const [names, setNames] = useState<Record<AliceColor, string>>({ gold: '', rose: '', blue: '', mint: '' });
   const seats = SEATS[count];
   return (
@@ -27,7 +31,7 @@ export function NewGameScreen({ onStart, onBack }: { onStart: (o: StartOptions) 
       <div className="panel newgame">
         <h1>New game</h1>
         <div className="count-choice">
-          {([3, 4] as const).map((n) => (
+          {([2, 3, 4] as const).map((n) => (
             <button key={n} className={`btn${count === n ? ' active' : ''}`} onClick={() => setCount(n)}>
               {n} players
             </button>
