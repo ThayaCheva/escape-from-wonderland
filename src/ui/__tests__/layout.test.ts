@@ -20,3 +20,14 @@ describe('fanLayout', () => {
     expect(fanLayout(0, 500, 70)).toEqual({ step: 0, total: 0 });
   });
 });
+
+describe('edgeFor', () => {
+  it('puts the viewer at the bottom and the others clockwise', async () => {
+    const { edgeFor } = await import('../layout');
+    expect(edgeFor(2, 0, 4)).toBe('top');
+    expect(edgeFor(0, 1, 4)).toBe('right');
+    expect(edgeFor(1, 0, 2)).toBe('top');
+    expect(edgeFor(2, 1, 3)).toBe('left');
+    expect(edgeFor(1, 1, 3)).toBe('bottom');
+  });
+});

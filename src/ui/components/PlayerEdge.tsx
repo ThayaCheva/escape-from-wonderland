@@ -15,9 +15,10 @@ export const EDGE_BOXES: Record<Edge, { cx: number; cy: number; length: number; 
 
 const PLATE_WIDTH = 230;
 
-export function playerStatus(state: GameState, seat: Seat): string[] {
+export function playerStatus(state: GameState, seat: Seat, connected = true): string[] {
   const p = state.players[seat];
   const chips: string[] = [];
+  if (!connected) chips.push('Disconnected');
   if (state.phase === 'playing' && state.current === seat) chips.push('Their turn');
   if (p.down) chips.push('Down');
   if (hasCheshire(state, seat)) chips.push('Immune (Cheshire)');
@@ -30,6 +31,13 @@ export function playerStatus(state: GameState, seat: Seat): string[] {
 interface Props {
   state: GameState;
   seat: Seat;
+  /** Overrides the player's own edge (online: placed relative to the viewer). */
+  edge?: Edge;
+  /** Online: keep the plate readable from the bottom of the screen. */
+  upright?: boolean;
+  /** Online: whether this edge belongs to the person at this screen. */
+  viewer?: boolean;
+  connected?: boolean;
   faceUp: boolean;
   glowing: boolean;
   targetable?: boolean;
@@ -40,26 +48,29 @@ interface Props {
   controls?: ReactNode;
 }
 
-export function PlayerEdge({ state, seat, faceUp, glowing, targetable, onPlateClick, selectedIds, isDimmed, onCardClick, controls }: Props) {
+export function PlayerEdge({ state, seat, edge: edgeOverride, upright, viewer, connected = true, faceUp, glowing, targetable, onPlateClick, selectedIds, isDimmed, onCardClick, controls }: Props) {
   const player = state.players[seat];
-  const box = EDGE_BOXES[player.edge];
-  const classes = ['player-edge', `edge-${player.edge}`];
+  const edge = edgeOverride ?? player.edge;
+  const box = EDGE_BOXES[edge];
+  const rotation = EDGE_ROTATION[edge];
+  const classes = ['player-edge', `edge-${edge}`];
   if (glowing) classes.push('glowing');
   return (
     <div
       className={classes.join(' ')}
       data-seat={seat}
+      data-viewer={viewer === undefined ? undefined : String(viewer)}
       style={{
         width: box.length,
         height: box.depth,
         left: box.cx - box.length / 2,
         top: box.cy - box.depth / 2,
-        transform: `rotate(${EDGE_ROTATION[player.edge]}deg)`,
+        transform: `rotate(${rotation}deg)`,
       }}
     >
       <div
         className={`plate${targetable ? ' targetable' : ''}`}
-        style={{ width: PLATE_WIDTH }}
+        style={{ width: PLATE_WIDTH, transform: upright && rotation ? `rotate(${-rotation}deg)` : undefined }}
         onClick={targetable ? onPlateClick : undefined}
         role={targetable ? 'button' : undefined}
       >
@@ -70,7 +81,7 @@ export function PlayerEdge({ state, seat, faceUp, glowing, targetable, onPlateCl
             {player.hand.length} card{player.hand.length === 1 ? '' : 's'}
           </div>
           <div className="plate-chips">
-            {playerStatus(state, seat).map((c) => (
+            {playerStatus(state, seat, connected).map((c) => (
               <span key={c} className="chip">
                 {c}
               </span>

@@ -25,7 +25,8 @@ interface Props {
 
 export function Card({ card, faceUp, size, selected, dimmed, highlight, modifier, onClick, style, title }: Props) {
   const { w, h } = CARD_SIZES[size];
-  const showFace = faceUp && card !== null;
+  // a hidden card (online: someone else's) can never be shown face up
+  const showFace = faceUp && card !== null && (card as { kind: string }).kind !== 'hidden';
   const classes = ['card', `card-${size}`];
   if (selected) classes.push('selected');
   if (dimmed) classes.push('dimmed');

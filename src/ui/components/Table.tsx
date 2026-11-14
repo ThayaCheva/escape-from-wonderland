@@ -5,7 +5,7 @@ import { checkPlay } from '../../engine/rules';
 import { isNumber } from '../../engine/cards';
 import { LOCATIONS } from '../../engine/board';
 import { BACKGROUND_IMAGE } from '../assets';
-import { EDGE_ROTATION } from '../layout';
+import { EDGE_ROTATION, edgeFor } from '../layout';
 import { confirm, faceUpHandSeat, needsHandoff, type UiGate } from '../visibility';
 import { Board } from './Board';
 import { CardPreview } from './CardPreview';
@@ -20,7 +20,29 @@ interface Props {
   state: GameState;
   dispatch: (a: GameAction) => string | null;
   onQuit: () => void;
+  /** Online: the seat whose screen this is. Unset means one shared screen (hot-seat). */
+  viewerSeat?: number;
+  /** Online: which seats are currently connected. */
+  connected?: boolean[];
+  /** A message to flash (e.g. an error the server sent back). */
+  notice?: { message: string; n: number } | null;
 }
+
+const WAITING_FOR: Partial<Record<string, string>> = {
+  'setup-pick': 'is choosing a starting card',
+  'drink-me-extra': 'is playing extra cards',
+  'eat-me': 'is choosing cards to eat',
+  'vorpal-target': 'is choosing what to slay',
+  'execution-declare': 'is declaring a number',
+  'execution-choose': 'is choosing which card to play',
+  'choose-player': 'is choosing a player',
+  'view-hand': 'is looking at a hand',
+  'exile-location': 'is choosing a location',
+  'vines-take': 'is taking a card',
+  'vines-give': 'is choosing a card to give',
+  discard: 'is choosing cards to discard',
+  'round-end-move': 'is choosing where to move',
+};
 
 /** Where the prompt panel sits for each acting edge (stage coordinates). */
 const PANEL_POS: Record<Edge, { x: number; y: number }> = {
@@ -42,7 +64,7 @@ const BOARD_PROMPTS = new Set(['exile-location', 'round-end-move', 'vorpal-targe
 const MULTI_SELECT = new Set(['eat-me', 'discard']);
 const SINGLE_SELECT = new Set(['execution-choose', 'vines-give']);
 
-export function Table({ state, dispatch, onQuit }: Props) {
+export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice }: Props) {
   const [gate, setGate] = useState<UiGate>({ confirmedSeat: null, peeked: false });
   const [selected, setSelected] = useState<string[]>([]);
   const [preview, setPreview] = useState<string | null>(null);
@@ -51,11 +73,17 @@ export function Table({ state, dispatch, onQuit }: Props) {
 
   const prompt = state.prompts[0];
   const acting = actingSeat(state);
-  const actingEdge = state.players[acting].edge;
-  const rotation = EDGE_ROTATION[actingEdge];
-  const handoff = needsHandoff(state, gate);
-  const faceSeat = faceUpHandSeat(state, gate);
-  const myTurnNoPrompt = !handoff && !prompt;
+  const online = viewerSeat !== undefined;
+  const edgeOf = (seat: number): Edge =>
+    online ? edgeFor(seat, viewerSeat, state.players.length) : state.players[seat].edge;
+  const actingEdge = edgeOf(acting);
+  const rotation = online ? 0 : EDGE_ROTATION[actingEdge];
+  const handoff = online ? false : needsHandoff(state, gate);
+  const faceSeat = online ? viewerSeat : faceUpHandSeat(state, gate);
+  /** True when the person at this screen is the one who must act. */
+  const mine = !online || acting === viewerSeat;
+  const canAct = !handoff && mine;
+  const myTurnNoPrompt = !online && !handoff && !prompt;
 
   // clear transient selections whenever the situation changes
   const situation = `${state.log.length}|${state.prompts.length}|${prompt?.type}|${acting}`;
@@ -63,6 +91,10 @@ export function Table({ state, dispatch, onQuit }: Props) {
     setSelected([]);
     setPreview(null);
   }, [situation]);
+
+  useEffect(() => {
+    if (notice) setToast(notice.message);
+  }, [notice]);
 
   useEffect(() => {
     if (!toast) return;
@@ -115,29 +147,31 @@ export function Table({ state, dispatch, onQuit }: Props) {
   // board selections
   let selectableLocations: LocationId[] = [];
   let onLocationClick: ((l: LocationId) => void) | undefined;
-  if (!handoff && prompt?.type === 'exile-location') {
+  if (canAct && prompt?.type === 'exile-location') {
     const from = state.players[prompt.target].position;
     selectableLocations = LOCATIONS.filter((l) => l !== from);
     onLocationClick = (l) => send({ type: 'choose-location', seat: acting, location: l });
-  } else if (!handoff && prompt?.type === 'round-end-move') {
+  } else if (canAct && prompt?.type === 'round-end-move') {
     selectableLocations = [...LOCATIONS];
     onLocationClick = (l) => send({ type: 'choose-location', seat: acting, location: l });
   }
   const selectableActive =
-    !handoff && prompt?.type === 'vorpal-target'
+    canAct && prompt?.type === 'vorpal-target'
       ? state.active.map((a, i) => (a.card.name === 'cheshire-cat' ? -1 : i)).filter((i) => i >= 0)
       : [];
-  const targetSeats = !handoff && prompt?.type === 'choose-player' ? prompt.options : [];
+  const targetSeats = canAct && prompt?.type === 'choose-player' ? prompt.options : [];
 
   const actingPlayer = state.players[acting];
   const controls = (seat: number) => {
-    if (seat !== acting || handoff) return null;
+    if (seat !== acting || !canAct) return null;
     if (!prompt) {
       return (
         <>
-          <button className="btn small" onClick={() => setGate({ ...gate, peeked: !gate.peeked })}>
-            {gate.peeked ? 'Hide' : 'Peek'}
-          </button>
+          {online ? null : (
+            <button className="btn small" onClick={() => setGate({ ...gate, peeked: !gate.peeked })}>
+              {gate.peeked ? 'Hide' : 'Peek'}
+            </button>
+          )}
           <button className="btn small" onClick={() => send({ type: 'pass', seat })}>
             {actingPlayer.down ? 'Stay down' : 'Pass'}
           </button>
@@ -161,6 +195,10 @@ export function Table({ state, dispatch, onQuit }: Props) {
           key={seat}
           state={state}
           seat={seat}
+          edge={edgeOf(seat)}
+          upright={online}
+          viewer={online ? seat === viewerSeat : undefined}
+          connected={connected ? connected[seat] !== false : true}
           faceUp={faceSeat === seat}
           glowing={seat === acting}
           targetable={targetSeats.includes(seat)}
@@ -185,7 +223,7 @@ export function Table({ state, dispatch, onQuit }: Props) {
         <div className="round-info">Round {state.round}</div>
       </div>
 
-      {!handoff && prompt ? (
+      {canAct && prompt ? (
         (() => {
           const compact = BOARD_PROMPTS.has(prompt.type);
           const pos = (compact ? PANEL_POS_EDGE : PANEL_POS)[actingEdge];
@@ -221,6 +259,15 @@ export function Table({ state, dispatch, onQuit }: Props) {
         })()
       ) : null}
 
+      {online && !mine && state.phase !== 'game-over' ? (
+        <div className="waiting-banner" data-testid="waiting">
+          {connected && connected[acting] === false
+            ? `Waiting for ${state.players[acting].name} to reconnect…`
+            : prompt && WAITING_FOR[prompt.type]
+              ? `${state.players[acting].name} ${WAITING_FOR[prompt.type]}…`
+              : `Waiting for ${state.players[acting].name}…`}
+        </div>
+      ) : null}
       {toast ? <div className="toast">{toast}</div> : null}
       {showRules ? <RulesPanel onClose={() => setShowRules(false)} /> : null}
       {handoff ? <HandoffBanner state={state} onConfirm={() => setGate(confirm(state))} /> : null}
