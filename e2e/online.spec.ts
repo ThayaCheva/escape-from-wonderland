@@ -111,3 +111,15 @@ test('the dragged card follows the pointer, and an interrupted drag is cancelled
   await expect(host.getByTestId('prompt')).toContainText('starting card');
   expect(errors).toEqual([]);
 });
+
+test("your hand is greyed out while it isn't your move", async ({ browser }) => {
+  const { pages, errors } = await openPlayers(browser, 2);
+  const [host, guest] = pages;
+  const guestCards = guest.locator('.player-edge[data-viewer="true"] .card[data-face="up"]');
+  // the host chooses a starting card first, so every one of the guest's cards is grey
+  await expect(guestCards).toHaveCount(7);
+  await expect(guest.locator('.player-edge[data-viewer="true"] .card[data-face="up"]:not(.dimmed)')).toHaveCount(0);
+  // and the host, who is choosing, has number cards lit up
+  expect(await host.locator('.player-edge[data-viewer="true"] .card[data-face="up"]:not(.dimmed)').count()).toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});

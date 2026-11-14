@@ -321,7 +321,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
           targetable={targetSeats.includes(seat)}
           onPlateClick={() => send({ type: 'choose-seat', seat: acting, target: seat })}
           selectedIds={seat === acting ? selected : []}
-          isDimmed={seat === acting ? dimmed : undefined}
+          isDimmed={seat === acting ? dimmed : online && seat === viewerSeat ? () => true : undefined}
           onCardClick={seat === acting && faceSeat === acting ? onOwnCardClick : undefined}
           onCardPointerDown={seat === acting && faceSeat === acting ? onCardPointerDown : undefined}
           onCardHover={faceSeat === seat ? setHoverCard : undefined}
