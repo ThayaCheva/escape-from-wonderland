@@ -182,13 +182,42 @@ describe('Vines of the Black Forest', () => {
     expect(s0.prompts).toEqual([{ type: 'choose-player', seat: 0, purpose: 'vines', options: [1] }]);
     let s = step(s0, { type: 'choose-seat', seat: 0, target: 1 });
     expect(s.prompts).toEqual([{ type: 'vines-take', seat: 0, target: 1 }]);
+    const taken = s.players[1].hand[0];
     s = step(s, { type: 'choose-hand-index', seat: 0, index: 0 });
-    const taken = theirs[0];
     expect(s.prompts).toEqual([{ type: 'vines-give', seat: 0, target: 1, takenCardId: taken.id }]);
     expect(() => step(s, { type: 'choose-cards', seat: 0, cardIds: [taken.id] })).toThrow(IllegalActionError);
     s = step(s, { type: 'choose-cards', seat: 0, cardIds: [give.id] });
     expect(s.players[0].hand).toContainEqual(taken);
     expect(s.players[1].hand).toContainEqual(give);
     expect(s.log.join(' ')).not.toContain('Red 7');
+    expect(s.log.join(' ')).not.toContain('Red 8');
+  });
+});
+
+describe('review fixes', () => {
+  it('Tea of Confusion as your last card makes you draw 2 instead of winning', () => {
+    const tea = sp('tea-of-confusion');
+    let s = makeState({
+      players: [{ hand: [tea], position: 'mad-hatter' }, { hand: filler(2) }, { hand: filler(2) }],
+      deck: deck(10),
+    });
+    s = step(s, { type: 'play', seat: 0, cardId: tea.id });
+    expect(s.prompts.map((p) => p.seat)).toEqual([0, 1, 2]);
+    s = step(s, { type: 'choose-cards', seat: 0, cardIds: [] });
+    s = step(s, { type: 'choose-cards', seat: 1, cardIds: [] });
+    s = step(s, { type: 'choose-cards', seat: 2, cardIds: [] });
+    expect(s.winner).toBeNull();
+    expect(s.players[0].hand).toHaveLength(2);
+  });
+
+  it('Vines shuffles the target hand before the blind pick', () => {
+    const vines = sp('vines');
+    const theirs = [num('R', 1), num('R', 2), num('R', 3), num('R', 4), num('R', 5), num('R', 6), num('R', 7), num('R', 8)];
+    let s = makeState({ players: [{ hand: [vines, num('W', 1)], position: 'black-forest' }, { hand: [...theirs] }, { hand: filler(2) }] });
+    s = step(s, { type: 'play', seat: 0, cardId: vines.id });
+    s = step(s, { type: 'choose-seat', seat: 0, target: 1 });
+    const after = s.players[1].hand.map((c) => c.id);
+    expect([...after].sort()).toEqual(theirs.map((c) => c.id).sort());
+    expect(after).not.toEqual(theirs.map((c) => c.id));
   });
 });

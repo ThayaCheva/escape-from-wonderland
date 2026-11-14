@@ -5,6 +5,7 @@ import { TitleScreen } from './components/TitleScreen';
 import { NewGameScreen } from './components/NewGameScreen';
 import { EndScreen } from './components/EndScreen';
 import { Table } from './components/Table';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export function App() {
   const game = useGame();
@@ -22,7 +23,15 @@ export function App() {
         />
       );
     }
-    return <Table state={game.state} dispatch={game.dispatch} onQuit={() => { game.quit(); setScreen('title'); }} />;
+    const toTitle = () => {
+      game.quit();
+      setScreen('title');
+    };
+    return (
+      <ErrorBoundary onReset={toTitle}>
+        <Table state={game.state} dispatch={game.dispatch} onQuit={toTitle} />
+      </ErrorBoundary>
+    );
   }
   if (screen === 'new') {
     return <NewGameScreen onStart={game.start} onBack={() => setScreen('title')} />;

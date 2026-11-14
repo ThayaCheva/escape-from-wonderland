@@ -182,3 +182,23 @@ describe('seats', () => {
     expect(nextUpSeat(allDown, 0)).toBeNull();
   });
 });
+
+describe('review fixes', () => {
+  it("a Dead Knight's colour lock also applies on an empty pile", () => {
+    const w3 = num('W', 3);
+    const r3 = num('R', 3);
+    const s = withHand([w3, r3], {}, { active: [{ card: sp('dead-red-knight'), seat: 1 }] });
+    expect(reason(s, w3.id)).toBe('Must be Red.');
+    expect(reason(s, r3.id)).toBe('ok');
+    expect(colorRule(s, 0)).toEqual({ mode: 'must', color: 'red' });
+  });
+
+  it("on an empty pile, Mad Hatter's Place and Cheshire still ignore the lock", () => {
+    const w3 = num('W', 3);
+    const hatter = withHand([w3], { position: 'mad-hatter' }, { active: [{ card: sp('dead-red-knight'), seat: 1 }] });
+    expect(reason(hatter, w3.id)).toBe('ok');
+    const w4 = num('W', 4);
+    const cat = withHand([w4], {}, { active: [{ card: sp('dead-red-knight'), seat: 1 }, { card: sp('cheshire-cat'), seat: 0 }] });
+    expect(reason(cat, w4.id)).toBe('ok');
+  });
+});

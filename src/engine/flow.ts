@@ -66,6 +66,8 @@ function isEmptyPrompt(s: GameState, p: Prompt): boolean {
   const hand = s.players[p.seat].hand;
   switch (p.type) {
     case 'discard':
+      // Tea of Confusion still has to draw even when the hand is empty
+      return hand.length === 0 && p.drawAfter === 0;
     case 'drink-me-extra':
       return hand.length === 0;
     case 'eat-me':

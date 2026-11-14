@@ -29,6 +29,10 @@ describe('save', () => {
     ['an old version', JSON.stringify({ version: 0 })],
     ['a save without players', JSON.stringify({ version: 1, prompts: [] })],
     ['a save without prompts', JSON.stringify({ version: 1, players: [] })],
+    ['a save with no players', JSON.stringify({ version: 1, players: [], prompts: [] })],
+    ['a save missing the deck', JSON.stringify((({ deck: _d, ...rest }) => rest)(newGame({ playerCount: 3, seed: 2 })))],
+    ['a save whose current seat is out of range', JSON.stringify({ ...newGame({ playerCount: 3, seed: 2 }), current: 5 })],
+    ['a save with a player missing a hand', JSON.stringify((() => { const g = newGame({ playerCount: 3, seed: 2 }) as unknown as { players: Record<string, unknown>[] }; delete g.players[1].hand; return g; })())],
   ])('discards %s', (_label, raw) => {
     const store = memory({ [SAVE_KEY]: raw });
     expect(loadGame(store)).toBeNull();

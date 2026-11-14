@@ -37,7 +37,6 @@ export function isImmune(state: GameState, seat: Seat, source: EffectSource): bo
 
 export function colorRule(state: GameState, seat: Seat): ColorRule {
   const top = state.pile[state.pile.length - 1];
-  if (!top) return { mode: 'any' };
   if (state.players[seat].position === 'mad-hatter' && locationEffectsOn(state, seat)) return { mode: 'any' };
   const knights = state.active.filter(
     (a) => a.card.name === 'dead-red-knight' || a.card.name === 'dead-white-knight',
@@ -46,6 +45,7 @@ export function colorRule(state: GameState, seat: Seat): ColorRule {
   if (knight && !(knight.seat !== seat && hasCheshire(state, seat))) {
     return { mode: 'must', color: knight.card.name === 'dead-red-knight' ? 'red' : 'white' };
   }
+  if (!top) return { mode: 'any' };
   return { mode: 'not', color: top.card.color };
 }
 
@@ -66,16 +66,15 @@ export function checkPlay(state: GameState, seat: Seat, cardId: string, opts: { 
   if (isNumber(card)) {
     if (opts.free) return OK;
     const top = state.pile[state.pile.length - 1];
-    if (!top) return OK;
     const effective = card.value + modifierFor(state, seat);
     const rule = colorRule(state, seat);
     let needColor: Color | null = null;
     if (rule.mode === 'must' && card.color !== rule.color) needColor = rule.color;
     if (rule.mode === 'not' && card.color === rule.color) needColor = rule.color === 'red' ? 'white' : 'red';
-    const valueBad = effective < top.effective;
+    const valueBad = top !== undefined && effective < top.effective;
     if (needColor && valueBad) return no(`Must be ${colorName(needColor)} and at least ${top.effective}.`);
     if (needColor) return no(`Must be ${colorName(needColor)}.`);
-    if (valueBad) return no(`Must be at least ${top.effective}.`);
+    if (valueBad) return no(`Must be at least ${top!.effective}.`);
     return OK;
   }
 

@@ -3,6 +3,7 @@ import { IllegalActionError } from '../errors';
 import { drawAndLog, discardFromHand, log, moveToken, nameOf, placeNumber, removeFromHand } from '../mutate';
 import { playCard } from '../play';
 import { isImmune, nextUpSeat, playerTargets } from '../rules';
+import { shuffle } from '../rng';
 import type { ActionName, GameAction, GameState, NumberCard, Prompt, Seat, SpecialCard } from '../types';
 import type { PromptHandlers } from './handlers';
 
@@ -144,6 +145,10 @@ export const ACTION_PROMPT_HANDLERS: PromptHandlers = {
       pushFront(s, { type: 'exile-location', seat: user, target: a.target });
     } else {
       log(s, `${nameOf(s, user)} reaches into ${nameOf(s, a.target)}'s hand.`);
+      // mix the hand so a blind pick can't use a remembered order (e.g. after Caterpillar)
+      const [mixed, seed] = shuffle(s.players[a.target].hand, s.seed);
+      s.players[a.target].hand = mixed;
+      s.seed = seed;
       pushFront(s, { type: 'vines-take', seat: user, target: a.target });
     }
   },
