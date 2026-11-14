@@ -32,7 +32,7 @@ export function OpponentPanel({ state, seat, edge, glowing, connected, next, whe
   const chips = [...playerStatus(state, seat, connected), ...(next ? ['Next'] : [])];
   return (
     <div
-      className={`player-edge opponent edge-${edge}${glowing ? ' glowing' : ''}`}
+      className={`player-edge opponent edge-${edge}${glowing ? ' glowing' : ''}${player.down ? ' is-down' : ''}`}
       data-seat={seat}
       data-viewer="false"
       style={{ left: centre.x, top: centre.y }}

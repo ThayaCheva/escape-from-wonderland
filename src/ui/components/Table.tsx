@@ -6,6 +6,8 @@ import { checkPlay } from '../../engine/rules';
 import { CARD_DEFS, isNumber } from '../../engine/cards';
 import { changedSince, dropAction, lastPlayLine, locationLine, nextSeatToAct, passNeedsConfirm } from '../info';
 import { Card } from './Card';
+import { Animations } from './Animations';
+import { detectAnimations, type Anim } from '../animationEvents';
 import { setSoundOn, soundOn } from '../sound';
 import { LOCATIONS } from '../../engine/board';
 import { BACKGROUND_IMAGE } from '../assets';
@@ -83,6 +85,19 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   const [callout, setCallout] = useState<string | null>(null);
   const [freshPileId, setFreshPileId] = useState<string | null>(null);
   const [sound, setSound] = useState(soundOn);
+  const [animBatch, setAnimBatch] = useState<{ id: number; anims: Anim[] } | null>(null);
+  const [revealing, setRevealing] = useState(false);
+  const animPrev = useRef<GameState | null>(null);
+  useEffect(() => {
+    const anims = detectAnimations(animPrev.current, state);
+    animPrev.current = state;
+    if (anims.length === 0) return;
+    setAnimBatch({ id: Math.random(), anims });
+    if (anims.some((a) => a.kind === 'reveal')) {
+      setRevealing(true);
+      setTimeout(() => setRevealing(false), 900);
+    }
+  }, [state]);
   const suppressClick = useRef(false);
   const lastSeen = useRef<{ play: string | null; pileTop: string | null } | null>(null);
   const latest = useRef(state);
@@ -292,6 +307,8 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
         glowLocations={dragLocation ? [dragLocation] : []}
         freshPileId={freshPileId}
         callout={callout}
+        revealing={revealing}
+        dragging={drag !== null}
       />
       {state.players.map((_, seat) =>
         online && seat !== viewerSeat ? (
@@ -423,6 +440,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
             document.body,
           )
         : null}
+      <Animations batch={animBatch} state={state} edgeOf={edgeOf} online={online} viewerSeat={viewerSeat} />
       {offline ? (
         <div className="offline-bar" data-testid="offline">
           Reconnecting…

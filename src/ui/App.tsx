@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { GameState } from '../engine/types';
 import { useGame } from './useGame';
 import { loadGame } from './save';
 import { roomFromUrl, useOnlineGame } from '../net/useOnlineGame';
@@ -13,10 +14,32 @@ import { OnlineStatusScreen } from './components/OnlineStatusScreen';
 
 type Screen = 'title' | 'new' | 'create' | 'join';
 
+/** True once the end screen should show: 2.5 s after the game ends, so the win animation can play. */
+function useEndScreen(state: GameState | null): boolean {
+  const [show, setShow] = useState(false);
+  const seen = useRef<GameState | null>(null);
+  useEffect(() => {
+    const over = state?.phase === 'game-over';
+    if (!over) {
+      setShow(false);
+    } else if (seen.current === null || seen.current.phase === 'game-over') {
+      setShow(true); // opened straight onto a finished game
+    } else {
+      const t = setTimeout(() => setShow(true), 2500);
+      seen.current = state;
+      return () => clearTimeout(t);
+    }
+    seen.current = state;
+  }, [state]);
+  return show;
+}
+
 export function App() {
   const game = useGame();
   const online = useOnlineGame();
   const [screen, setScreen] = useState<Screen>(() => (roomFromUrl() ? 'join' : 'title'));
+  const localEnd = useEndScreen(game.state);
+  const onlineEnd = useEndScreen(online.view);
 
   const toTitle = () => {
     game.quit();
@@ -26,7 +49,7 @@ export function App() {
 
   // ---------- one screen (hot-seat) ----------
   if (game.state) {
-    if (game.state.phase === 'game-over') {
+    if (game.state.phase === 'game-over' && localEnd) {
       return (
         <EndScreen
           state={game.state}
@@ -49,7 +72,7 @@ export function App() {
     return <OnlineStatusScreen title="Opened in another tab" detail="This game is now open in another tab or window." onBack={toTitle} />;
   }
   if (online.status === 'game' && online.view && online.seat !== null) {
-    if (online.view.phase === 'game-over') {
+    if (online.view.phase === 'game-over' && onlineEnd) {
       const isHost = online.lobby?.hostSeat === online.seat;
       return (
         <EndScreen

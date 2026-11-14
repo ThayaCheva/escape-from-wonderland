@@ -62,6 +62,7 @@ export function PlayerEdge({ state, seat, edge: edgeOverride, upright, viewer, c
   const rotation = EDGE_ROTATION[edge];
   const classes = ['player-edge', `edge-${edge}`];
   if (glowing) classes.push('glowing');
+  if (player.down) classes.push('is-down');
   return (
     <div
       className={classes.join(' ')}

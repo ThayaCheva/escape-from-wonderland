@@ -5,6 +5,7 @@ import { BOARD_IMAGE, aliceImage } from '../assets';
 import { DECK_BOX, DISCARD_BOX, LOCATION_AREAS, PILE_POINT, TOKEN_SLOTS } from '../boardGeometry';
 import { loadMasks, locationAt, maskUrl, type Masks } from '../locationMasks';
 import { activeEffectLines } from '../info';
+import { locationInfo, pickedSeats } from '../animationEvents';
 import { Card, CARD_SIZES } from './Card';
 
 export const BOARD_BOX = { left: 358, top: 150, width: 884, height: 600 };
@@ -22,12 +23,17 @@ interface Props {
   /** The pile card id that was just played (gets a short animation). */
   freshPileId?: string | null;
   callout?: string | null;
+  /** The starting cards were just revealed: flip them over. */
+  revealing?: boolean;
+  /** A card is being dragged (hide the location info). */
+  dragging?: boolean;
 }
 
 export function Board(props: Props) {
   const { state, selectableLocations = [], onLocationClick, glowLocations = [], selectableActive = [], onActiveClick } = props;
   const [masks, setMasks] = useState<Masks>({});
   const [hovered, setHovered] = useState<LocationId | null>(null);
+  const [tip, setTip] = useState<{ loc: LocationId; x: number; y: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,10 +44,14 @@ export function Board(props: Props) {
     };
   }, []);
 
-  const pointToLocation = (e: React.MouseEvent): LocationId | null => {
+  const pct = (e: React.MouseEvent) => {
     const r = ref.current?.getBoundingClientRect();
-    if (!r || selectableLocations.length === 0) return null;
-    return locationAt(masks, ((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100, selectableLocations);
+    return r ? { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 } : null;
+  };
+  const pointToLocation = (e: React.MouseEvent): LocationId | null => {
+    const p = pct(e);
+    if (!p || selectableLocations.length === 0) return null;
+    return locationAt(masks, p.x, p.y, selectableLocations);
   };
 
   const slotIndex: Partial<Record<Position, number>> = {};
@@ -62,8 +72,16 @@ export function Board(props: Props) {
       className={`board${props.dropTarget ? ' drop-target' : ''}${hovered ? ' pointing' : ''}`}
       style={{ ...BOARD_BOX, backgroundImage: `url(${BOARD_IMAGE})` }}
       data-testid="board"
-      onMouseMove={(e) => setHovered(pointToLocation(e))}
-      onMouseLeave={() => setHovered(null)}
+      onMouseMove={(e) => {
+        setHovered(pointToLocation(e));
+        const p = pct(e);
+        const loc = p ? locationAt(masks, p.x, p.y) : null;
+        setTip(loc && p ? { loc, x: p.x, y: p.y } : null);
+      }}
+      onMouseLeave={() => {
+        setHovered(null);
+        setTip(null);
+      }}
       onClick={(e) => {
         const loc = pointToLocation(e);
         if (loc) onLocationClick?.(loc);
@@ -104,7 +122,18 @@ export function Board(props: Props) {
         <span className="box-count">{state.discard.length}</span>
       </div>
 
-      <div className="pile" style={{ left: `${PILE_POINT.x}%`, top: `${PILE_POINT.y}%` }}>
+      {state.phase === 'setup' ? (
+        <div className="setup-picks" style={{ left: `${PILE_POINT.x}%`, top: `${PILE_POINT.y}%` }} data-testid="setup-picks">
+          {pickedSeats(state).map((seat) => (
+            <div key={seat} className="setup-pick">
+              <Card card={null} faceUp={false} size="mini" />
+              {state.players[seat].name}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className={`pile${props.revealing ? ' revealing' : ''}`} style={{ left: `${PILE_POINT.x}%`, top: `${PILE_POINT.y}%` }}>
         {pileShown.map((e, i) => (
           <Card
             key={e.card.id}
@@ -150,6 +179,24 @@ export function Board(props: Props) {
             );
           })}
         </div>
+      ) : null}
+
+      {tip && !props.dragging ? (
+        (() => {
+          const info = locationInfo(state, tip.loc);
+          return (
+            <div
+              className="location-tip"
+              data-testid="location-tip"
+              style={{ left: `${Math.min(tip.x + 2, 70)}%`, top: `${Math.min(tip.y + 3, 78)}%` }}
+            >
+              <b>{info.name}</b>
+              <div>{info.effect}</div>
+              {info.off ? <div className="tip-off">Location effects are off (Shadow Creatures).</div> : null}
+              <div className="muted">Events here: {info.events.join(', ')}</div>
+            </div>
+          );
+        })()
       ) : null}
 
       {tokens.map((t) => (

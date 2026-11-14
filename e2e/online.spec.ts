@@ -123,3 +123,34 @@ test("your hand is greyed out while it isn't your move", async ({ browser }) => 
   expect(await host.locator('.player-edge[data-viewer="true"] .card[data-face="up"]:not(.dimmed)').count()).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
+
+test('starting picks wait face down on the board until everyone has chosen', async ({ browser }) => {
+  const { pages, errors } = await openPlayers(browser, 3);
+  const [host, g1] = pages;
+  const pickFirst = async (p: Page) => {
+    const card = p.locator('.player-edge[data-viewer="true"] .card[data-face="up"]:not(.dimmed)').first();
+    await card.click({ position: { x: 6, y: 40 } });
+    await p.getByRole('button', { name: 'Choose' }).click();
+  };
+  await pickFirst(host);
+  // everyone sees one face-down card, labelled with the host's name
+  await expect(g1.getByTestId('setup-picks').locator('.card[data-face="down"]')).toHaveCount(1);
+  await expect(g1.getByTestId('setup-picks')).toContainText('Host');
+  await pickFirst(g1);
+  await expect(host.getByTestId('setup-picks').locator('.card')).toHaveCount(2);
+  await pickFirst(pages[2]);
+  // all chosen: the face-down cards give way to the revealed pile
+  await expect(host.getByTestId('setup-picks')).toHaveCount(0);
+  await expect(host.locator('.pile .card[data-face="up"]')).toHaveCount(3);
+  expect(errors).toEqual([]);
+});
+
+test('pointing at a board location explains what it does', async ({ browser }) => {
+  const { pages, errors } = await openPlayers(browser, 2);
+  const board = (await pages[0].getByTestId('board').boundingBox())!;
+  // the Mad Hatter's Place, around 40% across and 40% down the board
+  await pages[0].mouse.move(board.x + board.width * 0.4, board.y + board.height * 0.4);
+  await expect(pages[0].getByTestId('location-tip')).toContainText('ignore the colour rule');
+  await expect(pages[0].getByTestId('location-tip')).toContainText("Mad Hatter's Party");
+  expect(errors).toEqual([]);
+});
