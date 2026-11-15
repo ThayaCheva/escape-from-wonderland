@@ -63,6 +63,9 @@ export function checkPlay(state: GameState, seat: Seat, cardId: string, opts: { 
 
   if (player.drinkMeLock === 'active' && !isNumber(card)) return no('Drink Me: only number cards this turn.');
 
+  // house rule: an Action or Event card can't be played while it is the only card in your hand
+  if (!isNumber(card) && player.hand.length === 1) return no("You can't play an Action or Event card when it's your only card.");
+
   if (isNumber(card)) {
     if (opts.free) return OK;
     const top = state.pile[state.pile.length - 1];

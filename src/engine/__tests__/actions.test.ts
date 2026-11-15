@@ -48,10 +48,10 @@ describe('Drink Me Potion', () => {
     expect(s.current).toBe(1);
   });
 
-  it('as your last card it wins with no extra prompt', () => {
+  it('cannot be played when it is your only card', () => {
     const drink = sp('drink-me');
-    const s = play(makeState({ players: [{ hand: [drink] }, { hand: filler(3) }, { hand: filler(3) }] }), 0, drink);
-    expect(s.winner).toBe(0);
+    const s = makeState({ players: [{ hand: [drink] }, { hand: filler(3) }, { hand: filler(3) }] });
+    expect(() => play(s, 0, drink)).toThrow("You can't play an Action or Event card when it's your only card.");
   });
 
   it("an extra card's prompts come before the remaining extra", () => {

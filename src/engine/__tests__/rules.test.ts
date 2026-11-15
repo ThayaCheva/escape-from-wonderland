@@ -94,7 +94,7 @@ describe('locations and immunity', () => {
     const exile = sp('exile');
     const shadow = { card: sp('shadow-creatures'), seat: 1 };
     expect(modifierFor(withHand([], { position: 'red-queen' }, { active: [shadow] }), 0)).toBe(0);
-    expect(reason(withHand([exile], { position: 'black-forest' }, { active: [shadow] }), exile.id)).toBe('ok');
+    expect(reason(withHand([exile, num('R', 1)], { position: 'black-forest' }, { active: [shadow] }), exile.id)).toBe('ok');
     expect(isImmune(withHand([], { position: 'chess' }, { active: [shadow] }), 0, { kind: 'event', bySeat: 1 })).toBe(false);
   });
 
@@ -118,7 +118,7 @@ describe('locations and immunity', () => {
   it('Black Forest bans actions and events need their location', () => {
     const exile = sp('exile');
     const vines = sp('vines');
-    expect(reason(withHand([exile], { position: 'black-forest' }), exile.id)).toBe('No Action cards in the Black Forest.');
+    expect(reason(withHand([exile, num('R', 1)], { position: 'black-forest' }), exile.id)).toBe('No Action cards in the Black Forest.');
     expect(reason(withHand([vines, num('R', 1)], { position: 'chess' }), vines.id)).toBe('Only playable at the Black Forest.');
   });
 });
@@ -134,13 +134,13 @@ describe('card-specific playability', () => {
 
   it('Vorpal Sword needs something other than a Cheshire Cat to slay', () => {
     const sword = sp('vorpal-sword');
-    expect(reason(withHand([sword], {}, { active: [{ card: sp('cheshire-cat'), seat: 1 }] }), sword.id)).toBe('Nothing to slay.');
-    expect(reason(withHand([sword], {}, { active: [{ card: sp('jabberwocky'), seat: 1 }] }), sword.id)).toBe('ok');
+    expect(reason(withHand([sword, num('R', 1)], {}, { active: [{ card: sp('cheshire-cat'), seat: 1 }] }), sword.id)).toBe('Nothing to slay.');
+    expect(reason(withHand([sword, num('R', 1)], {}, { active: [{ card: sp('jabberwocky'), seat: 1 }] }), sword.id)).toBe('ok');
   });
 
   it('only one Cheshire Cat per round', () => {
     const cat = sp('cheshire-cat');
-    const s = withHand([cat]);
+    const s = withHand([cat, num('R', 1)]);
     s.cheshireUsedThisRound = true;
     expect(reason(s, cat.id)).toBe('Only one Cheshire Cat per round.');
   });
@@ -148,7 +148,7 @@ describe('card-specific playability', () => {
   it('Vines needs a swap card and a target', () => {
     const vines = sp('vines');
     const alone = makeState({ players: [{ hand: [vines], position: 'black-forest' }, { hand: [num('R', 2)] }, {}, {}] });
-    expect(reason(alone, vines.id)).toBe('You need a card to swap.');
+    expect(reason(alone, vines.id)).toBe("You can't play an Action or Event card when it's your only card.");
     const vines2 = sp('vines');
     const allChess = makeState({
       players: [
@@ -200,5 +200,26 @@ describe('review fixes', () => {
     const w4 = num('W', 4);
     const cat = withHand([w4], {}, { active: [{ card: sp('dead-red-knight'), seat: 1 }, { card: sp('cheshire-cat'), seat: 0 }] });
     expect(reason(cat, w4.id)).toBe('ok');
+  });
+});
+
+describe('a special that is your only card cannot be played', () => {
+  it('an Action or Event card cannot be played while it is the only card in your hand', () => {
+    const exile = sp('exile');
+    expect(reason(withHand([exile]), exile.id)).toBe("You can't play an Action or Event card when it's your only card.");
+    const decree = sp('rq-decree');
+    expect(reason(withHand([decree], { position: 'red-queen' }), decree.id)).toBe("You can't play an Action or Event card when it's your only card.");
+  });
+
+  it('a special is fine while you hold other cards, and a lone number card can always be played', () => {
+    const exile = sp('exile');
+    expect(reason(withHand([exile, num('R', 3)]), exile.id)).toBe('ok');
+    const r3 = num('R', 3);
+    expect(reason(withHand([r3]), r3.id)).toBe('ok');
+  });
+
+  it("applies to Drink Me's extra plays too", () => {
+    const exile = sp('exile');
+    expect(reason(withHand([exile]), exile.id, true)).toBe("You can't play an Action or Event card when it's your only card.");
   });
 });

@@ -71,6 +71,10 @@ export function RulesPanel({ onClose, returnFocus }: { onClose: () => void; retu
               <b>Pass</b> — your hand goes down. On a later turn you can rejoin by playing a card.
             </li>
           </ul>
+          <p>
+            An Action or Event card can’t be played while it’s the only card in your hand. If nothing you hold can be
+            played, your turn passes automatically.
+          </p>
           <h2>Locations</h2>
           <ul>
             <li>White Queen’s Castle: your number cards count 1 less.</li>

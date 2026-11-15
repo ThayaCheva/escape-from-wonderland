@@ -195,15 +195,16 @@ describe('Vines of the Black Forest', () => {
 });
 
 describe('review fixes', () => {
-  it('Tea of Confusion as your last card makes you draw 2 instead of winning', () => {
+  it('discarding your last card during Tea of Confusion means you draw 2 instead of winning', () => {
     const tea = sp('tea-of-confusion');
+    const last = num('R', 1);
     let s = makeState({
-      players: [{ hand: [tea], position: 'mad-hatter' }, { hand: filler(2) }, { hand: filler(2) }],
+      players: [{ hand: [tea, last], position: 'mad-hatter' }, { hand: filler(2) }, { hand: filler(2) }],
       deck: deck(10),
     });
     s = step(s, { type: 'play', seat: 0, cardId: tea.id });
     expect(s.prompts.map((p) => p.seat)).toEqual([0, 1, 2]);
-    s = step(s, { type: 'choose-cards', seat: 0, cardIds: [] });
+    s = step(s, { type: 'choose-cards', seat: 0, cardIds: [last.id] });
     s = step(s, { type: 'choose-cards', seat: 1, cardIds: [] });
     s = step(s, { type: 'choose-cards', seat: 2, cardIds: [] });
     expect(s.winner).toBeNull();
