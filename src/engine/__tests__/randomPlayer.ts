@@ -74,7 +74,7 @@ export function randomAction(s: GameState, rand: Rand): GameAction | null {
       return { type: 'choose-value', seat, value: 1 + Math.floor(rand() * 13) };
     case 'execution-choose': {
       const m = hand.filter((c) => isNumber(c) && c.value === p.value);
-      return m.length ? { type: 'choose-cards', seat, cardIds: [pick(rand, m).id] } : null;
+      return { type: 'choose-cards', seat, cardIds: m.length && rand() < 0.8 ? [pick(rand, m).id] : [] };
     }
     case 'choose-player':
       return p.options.length ? { type: 'choose-seat', seat, target: pick(rand, p.options) } : null;

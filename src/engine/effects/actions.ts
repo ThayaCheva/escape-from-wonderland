@@ -23,14 +23,6 @@ function pushFront(s: GameState, ...prompts: Prompt[]): void {
   s.prompts.unshift(...prompts);
 }
 
-function forcedPlay(s: GameState, target: Seat, card: NumberCard, user: Seat): void {
-  removeFromHand(s, target, card.id);
-  log(s, `${nameOf(s, target)} holds a ${card.value} and must play it.`);
-  placeNumber(s, target, card);
-  s.players[target].skipNextTurn = true;
-  drawAndLog(s, user, 5);
-}
-
 export const ACTION_EFFECTS: Record<ActionName, Effect> = {
   'drink-me': (s, seat) => {
     s.players[seat].drinkMeLock = 'pending';
@@ -113,25 +105,26 @@ export const ACTION_PROMPT_HANDLERS: PromptHandlers = {
       log(s, 'Execution Order has no effect.');
       return;
     }
-    const matches = s.players[target].hand.filter((c): c is NumberCard => isNumber(c) && c.value === a.value);
-    if (matches.length === 0) {
-      log(s, `${nameOf(s, target)} has no ${a.value}.`);
-      drawAndLog(s, target, 5);
-    } else if (matches.length === 1) {
-      forcedPlay(s, target, matches[0], user);
-    } else {
-      pushFront(s, { type: 'execution-choose', seat: target, value: a.value, bySeat: user });
-    }
+    pushFront(s, { type: 'execution-choose', seat: target, value: a.value, bySeat: user });
   },
 
   'execution-choose': (s, prompt, action) => {
-    const a = expect(action, 'choose-cards', 'Choose which card to play.');
+    const a = expect(action, 'choose-cards', 'Play a matching card or draw five.');
+    if (a.cardIds.length === 0) {
+      s.prompts.shift();
+      log(s, `${nameOf(s, prompt.seat)} does not play a ${prompt.value} for Execution Order.`);
+      drawAndLog(s, prompt.seat, 5);
+      return;
+    }
     const card = s.players[prompt.seat].hand.find((c) => c.id === a.cardIds[0]);
     if (a.cardIds.length !== 1 || !card || !isNumber(card) || card.value !== prompt.value) {
       illegal(`Choose one of your ${prompt.value}s.`);
     }
     s.prompts.shift();
-    forcedPlay(s, prompt.seat, card, prompt.bySeat);
+    removeFromHand(s, prompt.seat, card.id);
+    placeNumber(s, prompt.seat, card);
+    s.players[prompt.seat].skipNextTurn = true;
+    drawAndLog(s, prompt.bySeat, 5);
   },
 
   'choose-player': (s, prompt, action) => {

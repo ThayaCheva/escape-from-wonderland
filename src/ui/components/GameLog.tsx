@@ -1,17 +1,68 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { newLogLines } from '../animationEvents';
 
 export function GameLog({ lines }: { lines: string[] }) {
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.scrollTo({ top: ref.current.scrollHeight });
-  }, [lines.length, lines[lines.length - 1]]);
+  const [open, setOpen] = useState(true);
+  // Keep row keys tied to the whole game as old entries fall out of the server's log.
+  const [history, setHistory] = useState(() => ({ lines, offset: 0 }));
+  if (history.lines !== lines) {
+    const added = newLogLines(history.lines, lines).length;
+    setHistory({ lines, offset: history.offset + history.lines.length + added - lines.length });
+  }
+  const followLatest = useRef(true);
+  const reading = useRef<{ row: HTMLElement; offset: number } | null>(null);
+  const first = Math.max(0, lines.length - 40);
+  useLayoutEffect(() => {
+    const log = ref.current;
+    if (!open || !log) return;
+    const anchor = reading.current;
+    if (followLatest.current) {
+      log.scrollTop = log.scrollHeight;
+    } else if (anchor) {
+      log.scrollTop = log.contains(anchor.row) ? anchor.row.offsetTop - anchor.offset : 0;
+    }
+  }, [open, lines]);
   return (
-    <div className="game-log" ref={ref} data-testid="log">
-      {lines.slice(-40).map((l, i, shown) => (
-        <div key={`${lines.length}-${i}`} className={`log-line${i === shown.length - 1 ? ' newest' : ''}`}>
-          {l}
-        </div>
-      ))}
-    </div>
+    <section className="activity">
+      <button
+        type="button"
+        className="activity-toggle"
+        aria-expanded={open}
+        aria-controls="table-activity"
+        onClick={() => {
+          followLatest.current = true;
+          reading.current = null;
+          setOpen(!open);
+        }}
+      >
+        <span>Activity</span>
+        <span className="activity-chevron" aria-hidden />
+      </button>
+      <div
+        className="game-log"
+        id="table-activity"
+        role="log"
+        aria-label="Game activity"
+        tabIndex={0}
+        hidden={!open}
+        ref={ref}
+        data-testid="log"
+        onScroll={({ currentTarget: log }) => {
+          followLatest.current = log.scrollHeight - log.scrollTop - log.clientHeight < 12;
+          const row = followLatest.current ? undefined : Array.from(log.children).find(
+            (child): child is HTMLElement =>
+              child instanceof HTMLElement && child.offsetTop + child.offsetHeight > log.scrollTop,
+          );
+          reading.current = row ? { row, offset: row.offsetTop - log.scrollTop } : null;
+        }}
+      >
+        {lines.slice(first).map((line, i) => (
+          <div key={history.offset + first + i} className={`log-line${first + i === lines.length - 1 ? ' newest' : ''}`}>
+            {line}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

@@ -145,22 +145,47 @@ describe('Execution Order', () => {
     expect(setup(filler(2)).s.prompts).toEqual([{ type: 'execution-declare', seat: 0 }]);
   });
 
-  it('the next player draws 5 when they hold no card of that value', () => {
-    const s = step(setup(filler(2)).s, { type: 'choose-value', seat: 0, value: 7 });
+  it('the next player sees the order before drawing 5 when they hold no match', () => {
+    let s = step(setup(filler(2)).s, { type: 'choose-value', seat: 0, value: 7 });
+    expect(s.prompts[0]).toEqual({ type: 'execution-choose', seat: 1, value: 7, bySeat: 0 });
+    expect(s.players[1].hand).toHaveLength(2);
+    s = step(s, { type: 'choose-cards', seat: 1, cardIds: [] });
     expect(s.players[1].hand).toHaveLength(7);
     expect(s.players[0].hand).toHaveLength(2);
+    expect(s.current).toBe(1);
   });
 
-  it('a matching card is forced onto the pile, they skip a turn and the user draws 5', () => {
+  it('asks before playing a single match, then skips the target and draws 5 for the declarer', () => {
     const r7 = num('R', 7);
     const order = sp('execution-order');
     let s = makeState({ players: [{ hand: [order, ...filler(2)] }, { hand: [r7, ...filler(2)] }, { hand: filler(2) }], deck: deck(20) });
     s = play(s, 0, order);
     s = step(s, { type: 'choose-value', seat: 0, value: 7 });
+    expect(s.prompts[0]).toEqual({ type: 'execution-choose', seat: 1, value: 7, bySeat: 0 });
+    expect(s.players[1].hand).toContainEqual(r7);
+    expect(s.pile).toHaveLength(0);
+    expect(() => step(s, { type: 'choose-cards', seat: 1, cardIds: [s.players[1].hand[1].id] })).toThrow('Choose one of your 7s.');
+    s = step(s, { type: 'choose-cards', seat: 1, cardIds: [r7.id] });
     expect(s.pile[s.pile.length - 1].card).toEqual(r7);
     expect(s.lastNumberSeat).toBe(1);
     expect(s.players[0].hand).toHaveLength(7);
     expect(s.current).toBe(2); // seat 1 skipped
+  });
+
+  it('lets the target keep a match, draw 5, and take their turn normally', () => {
+    const r7 = num('R', 7);
+    const order = sp('execution-order');
+    const before = makeState({
+      players: [{ hand: [order, ...filler(2)] }, { hand: [r7, ...filler(1)] }, { hand: filler(2) }],
+      deck: deck(20),
+    });
+    const pending = step(play(before, 0, order), { type: 'choose-value', seat: 0, value: 7 });
+    const after = step(pending, { type: 'choose-cards', seat: 1, cardIds: [] });
+    expect(after.players[1].hand).toContainEqual(r7);
+    expect(after.players[1].hand).toHaveLength(7);
+    expect(after.players[0].hand).toHaveLength(2);
+    expect(after.pile).toHaveLength(0);
+    expect(after.current).toBe(1);
   });
 
   it('a target holding two matches chooses which', () => {
@@ -176,7 +201,9 @@ describe('Execution Order', () => {
   });
 
   it('skips down players when finding the next player', () => {
-    const s = step(setup(filler(2), { targetDown: true }).s, { type: 'choose-value', seat: 0, value: 7 });
+    let s = step(setup(filler(2), { targetDown: true }).s, { type: 'choose-value', seat: 0, value: 7 });
+    expect(s.prompts[0]).toMatchObject({ type: 'execution-choose', seat: 2 });
+    s = step(s, { type: 'choose-cards', seat: 2, cardIds: [] });
     expect(s.players[1].hand).toHaveLength(2);
     expect(s.players[2].hand).toHaveLength(7);
   });

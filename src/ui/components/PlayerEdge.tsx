@@ -17,11 +17,11 @@ export const EDGE_BOXES: Record<Edge, { cx: number; cy: number; length: number; 
 
 const PLATE_WIDTH = 230;
 
-export function playerStatus(state: GameState, seat: Seat, connected = true): string[] {
+export function playerStatus(state: GameState, seat: Seat, connected = true, viewer = false): string[] {
   const p = state.players[seat];
   const chips: string[] = [];
   if (!connected) chips.push('Disconnected');
-  if (state.phase === 'playing' && state.current === seat) chips.push('Their turn');
+  if (!viewer && state.phase === 'playing' && state.current === seat) chips.push('Their turn');
   if (p.down) chips.push('Down');
   if (hasCheshire(state, seat)) chips.push('Immune (Cheshire)');
   else if (isImmune(state, seat, { kind: 'event', bySeat: -1 })) chips.push('Immune to events');
@@ -81,18 +81,20 @@ export function PlayerEdge({ state, seat, edge: edgeOverride, upright, viewer, c
       <div
         className={`plate${targetable ? ' targetable' : ''}`}
         style={{ width: PLATE_WIDTH, transform: upright && rotation ? `rotate(${-rotation}deg)` : undefined }}
-        onClick={targetable ? onPlateClick : undefined}
-        role={targetable ? 'button' : undefined}
       >
+        {targetable ? <button type="button" className="plate-target" aria-label={`Choose ${player.name}`} onClick={onPlateClick} /> : null}
         <img className="plate-portrait" src={aliceImage(player.alice)} alt="" />
         <div className="plate-info">
-          <div className="plate-name">{player.name}</div>
+          <div className="plate-identity">
+            <div className="plate-name" title={player.name}>{player.name}</div>
+            {viewer ? <span className="plate-you">You</span> : null}
+          </div>
           <div className="plate-count">
             {player.hand.length} card{player.hand.length === 1 ? '' : 's'}
           </div>
           {where ? <div className="plate-where">{where}</div> : null}
           <div className="plate-chips">
-            {[...playerStatus(state, seat, connected), ...(next ? ['Next'] : [])].map((c) => (
+            {[...playerStatus(state, seat, connected, viewer), ...(next ? ['Next'] : [])].map((c) => (
               <span key={c} className="chip">
                 {c}
               </span>

@@ -24,7 +24,7 @@ export const CARD_DEFS: Record<CardName, CardDef> = {
   }),
   'execution-order': def({
     name: 'execution-order', kind: 'action', title: 'Execution Order', location: null, lasting: false,
-    text: 'Declare the next NUMBER card that has to be played. If the NEXT player cannot play the card, they must draw 5 cards. If the NEXT player can play the card, USER draws 5 cards.',
+    text: 'Declare a number from 1 to 13. The next player who is up may play a matching card of either colour. If they play it, they skip their next turn and you draw 5 cards. If they decline or have no match, they draw 5 cards.',
   }),
   'dead-red-knight': def({
     name: 'dead-red-knight', kind: 'action', title: 'Dead Red Knight', location: null, lasting: true,

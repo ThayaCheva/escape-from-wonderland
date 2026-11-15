@@ -44,10 +44,11 @@ export function OpponentPanel({ state, seat, edge, glowing, connected, next, whe
       data-viewer="false"
       style={{ left: centre.x, top: centre.y }}
     >
-      <div className={`plate${targetable ? ' targetable' : ''}`} onClick={targetable ? onPick : undefined} role={targetable ? 'button' : undefined}>
+      <div className={`plate${targetable ? ' targetable' : ''}`}>
+        {targetable ? <button type="button" className="plate-target" aria-label={`Choose ${player.name}`} onClick={onPick} /> : null}
         <img className="plate-portrait" src={aliceImage(player.alice)} alt="" />
         <div className="plate-info">
-          <div className="plate-name">{player.name}</div>
+          <div className="plate-name" title={player.name}>{player.name}</div>
           <div className="plate-count">
             {player.hand.length} card{player.hand.length === 1 ? '' : 's'}
           </div>

@@ -128,7 +128,7 @@ function Screens({ phone }: { phone: boolean }) {
           viewerSeat={online.seat}
           connected={online.connected}
           notice={online.error}
-          offline={!online.socketOpen}
+          offline={!online.gameReady}
         />
       </ErrorBoundary>,
     );

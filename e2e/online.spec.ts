@@ -124,6 +124,21 @@ test("your hand is greyed out while it isn't your move", async ({ browser }) => 
   expect(errors).toEqual([]);
 });
 
+test('a waiting player can inspect their own hand with the keyboard', async ({ browser }) => {
+  const { pages: [host, guest] } = await openPlayers(browser, 2);
+  const card = guest.locator('.player-edge[data-viewer="true"]').getByRole('button').first();
+  await card.focus();
+  await guest.keyboard.press('Enter');
+  const preview = guest.getByRole('dialog');
+  await expect(preview).toBeVisible();
+  await expect(preview.getByRole('button')).toHaveCount(1);
+  await expect(preview.getByRole('button', { name: 'Back' })).toBeFocused();
+  await guest.keyboard.press('Escape');
+  await expect(preview).toHaveCount(0);
+  await expect(card).toBeFocused();
+  await expect(host.getByTestId('prompt')).toContainText('starting card');
+});
+
 test('starting picks wait face down on the board until everyone has chosen', async ({ browser }) => {
   const { pages, errors } = await openPlayers(browser, 3);
   const [host, g1] = pages;

@@ -16,7 +16,7 @@ interface Props {
   onCardHover?: (card: CardT | null) => void;
 }
 
-export function Hand({ cards, faceUp, length, size = 'hand', selectedIds = [], isDimmed, onCardClick, onCardPointerDown, onCardHover }: Props) {
+export function Hand({ cards, faceUp, length, size = 'hand', selectedIds, isDimmed, onCardClick, onCardPointerDown, onCardHover }: Props) {
   const { w, h } = CARD_SIZES[size];
   const { step, total } = fanLayout(cards.length, length, w);
   return (
@@ -35,7 +35,7 @@ export function Hand({ cards, faceUp, length, size = 'hand', selectedIds = [], i
               card={card}
               faceUp={faceUp}
               size={size}
-              selected={selectedIds.includes(card.id)}
+              selected={selectedIds?.includes(card.id)}
               dimmed={faceUp && isDimmed ? isDimmed(card) : false}
               onClick={onCardClick ? () => onCardClick(card, i) : undefined}
             />

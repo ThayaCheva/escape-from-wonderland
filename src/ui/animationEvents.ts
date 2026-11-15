@@ -1,12 +1,17 @@
 // Works out which animations to play by comparing the previous and the new game state.
 // Pure: no React, no DOM. Uses only information the viewer already has (public log + public state).
 import { CARD_DEFS } from '../engine/cards';
-import { LOCATION_NAMES } from '../engine/board';
+import { LOCATIONS, LOCATION_NAMES } from '../engine/board';
 import { isImmune } from '../engine/rules';
 import type { CardName, GameState, LocationId, Seat } from '../engine/types';
 
+type SpecialAnim = { kind: 'special'; seat: Seat } & (
+  | { name: 'rabbit-hole'; destinations: LocationId[] }
+  | { name: Exclude<CardName, 'rabbit-hole'> }
+);
+
 export type Anim =
-  | { kind: 'special'; seat: Seat; name: CardName }
+  | SpecialAnim
   | { kind: 'draw'; seat: Seat; count: number }
   | { kind: 'discard'; seat: Seat; count: number }
   | { kind: 'party'; seats: Seat[] }
@@ -41,6 +46,21 @@ export function newLogLines(prev: string[] | null, next: string[]): string[] {
 }
 
 const TITLE_TO_NAME = new Map(Object.values(CARD_DEFS).map((d) => [d.title, d.name] as const));
+const TITLE_TO_LOCATION = new Map(LOCATIONS.map((location) => [LOCATION_NAMES[location], location] as const));
+
+function rabbitDestinations(lines: string[], start: number): LocationId[] {
+  const destinations = new Set<LocationId>();
+  for (let i = start; i < lines.length; i++) {
+    const line = lines[i];
+    // Leaving the Black Forest can add this line between moves from the same Rabbit Hole.
+    if (line.endsWith(' left the Black Forest, so their Shadow Creatures are discarded.')) continue;
+    const move = line.match(/^.+ moves to (.+)\.$/);
+    const destination = move && TITLE_TO_LOCATION.get(move[1]);
+    if (!destination) break;
+    destinations.add(destination);
+  }
+  return [...destinations];
+}
 
 export function detectAnimations(prev: GameState | null, next: GameState): Anim[] {
   if (!prev) return [];
@@ -50,12 +70,17 @@ export function detectAnimations(prev: GameState | null, next: GameState): Anim[
   };
   const anims: Anim[] = [];
   let partyBy: Seat | null = null;
-  for (const line of newLogLines(prev.log, next.log)) {
+  const lines = newLogLines(prev.log, next.log);
+  for (const [index, line] of lines.entries()) {
     let m: RegExpMatchArray | null;
     if ((m = line.match(/^(.+) plays (.+)\.$/))) {
       const name = TITLE_TO_NAME.get(m[2]);
       const seat = seatOf(m[1]);
-      if (name && seat !== null) anims.push({ kind: 'special', seat, name });
+      if (name && seat !== null) {
+        anims.push(name === 'rabbit-hole'
+          ? { kind: 'special', seat, name, destinations: rabbitDestinations(lines, index + 1) }
+          : { kind: 'special', seat, name });
+      }
       if (name === 'mh-party') partyBy = seat;
     } else if ((m = line.match(/^(.+) draws (\d+) cards?\.$/))) {
       const seat = seatOf(m[1]);

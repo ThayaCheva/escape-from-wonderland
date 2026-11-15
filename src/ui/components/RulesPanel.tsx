@@ -1,9 +1,12 @@
+import { useEffect, useId, useRef, type RefObject } from 'react';
+import { CARD_DEFS } from '../../engine/cards';
+
 const CARD_RULES: Array<[string, string]> = [
   ['Drink Me Potion', 'Play up to 2 more cards right away. Number cards played this way ignore value and colour. On your next turn you may only play number cards (or pass). Drink Me can’t be one of the extra cards.'],
   ['Eat Me Cake', 'Discard any number cards from your hand whose printed values add up to 5 or less.'],
   ['Vorpal Sword', 'Slay one active card (Jabberwocky, Shadow Creatures, a Dead Knight or a waiting Tweedle). Only playable when there is something to slay. Can’t slay the Cheshire Cat.'],
   ['Cheshire Cat', 'Until the round ends, nothing other players play affects you or can target you. Only one Cheshire Cat per round.'],
-  ['Execution Order', 'Declare a number (1–13). If the next player who isn’t down holds that number, it’s played for them, they skip their next turn and you draw 5. If they don’t, they draw 5.'],
+  ['Execution Order', CARD_DEFS['execution-order'].text],
   ['Dead Red / White Knight', 'Until the round ends, number cards must be that colour (instead of alternating). A newer Knight replaces an older one. You draw 1.'],
   ['Wisdom of Caterpillar', 'Choose a player. You see their hand, then they see yours.'],
   ['Exile', 'Move any player (you too) to a different location. They draw 1.'],
@@ -18,12 +21,33 @@ const CARD_RULES: Array<[string, string]> = [
   ['Vines of the Black Forest', 'Take a face-down card from another player, then give them a card from your hand.'],
 ];
 
-export function RulesPanel({ onClose }: { onClose: () => void }) {
+export function RulesPanel({ onClose, returnFocus }: { onClose: () => void; returnFocus: RefObject<HTMLButtonElement | null> }) {
+  const titleId = useId();
+  const body = useRef<HTMLDivElement>(null);
+  const close = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    close.current?.focus();
+    return () => returnFocus.current?.focus();
+  }, [returnFocus]);
+
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="panel rules" onClick={(e) => e.stopPropagation()}>
-        <h1>How to play</h1>
-        <div className="rules-body">
+      <div
+        className="panel rules"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose();
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            (e.target === close.current ? body : close).current?.focus();
+          }
+        }}
+      >
+        <h1 id={titleId}>How to play</h1>
+        <div className="rules-body" ref={body} tabIndex={0}>
           <h2>Goal</h2>
           <p>Escape Wonderland by being the first player with no cards left.</p>
           <h2>Setup</h2>
@@ -73,7 +97,7 @@ export function RulesPanel({ onClose }: { onClose: () => void }) {
             ))}
           </dl>
         </div>
-        <button className="btn" onClick={onClose}>
+        <button className="btn" ref={close} onClick={onClose}>
           Close
         </button>
       </div>

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { detectAnimations, locationInfo, newLogLines, pickedSeats } from '../animationEvents';
 import { makeState, num, sp } from '../../engine/testkit';
 import type { GameState } from '../../engine/types';
+import { step } from '../../engine/step';
 
 const names = () => makeState({ players: [{ name: 'Ann' }, { name: 'Sam' }, { name: 'Kim' }] });
 function after(prev: GameState, lines: string[], change: (s: GameState) => void = () => {}): GameState {
@@ -33,6 +34,57 @@ describe('detectAnimations', () => {
     const prev = names();
     const next = after(prev, ['Sam plays Exile.', 'Kim plays Red 9 (Red Queen\'s Castle: counts as 10).']);
     expect(detectAnimations(prev, next)).toEqual([{ kind: 'special', seat: 1, name: 'exile' }]);
+  });
+
+  it('marks only the destinations reached through the Rabbit Hole', () => {
+    const card = sp('rabbit-hole');
+    const prev = makeState({
+      players: [
+        { position: 'red-queen', hand: [card, num('W', 7)] },
+        { position: 'chess', hand: [num('R', 9)] },
+        { position: 'mad-hatter', hand: [num('W', 2)] },
+        { position: 'outskirts', hand: [num('R', 3)] },
+      ],
+    });
+    const next = step(prev, { type: 'play', seat: 0, cardId: card.id });
+    expect(detectAnimations(prev, next)).toContainEqual({
+      kind: 'special', seat: 0, name: 'rabbit-hole', destinations: ['white-queen', 'black-forest'],
+    });
+  });
+
+  it('does not attribute a later Exile move to Rabbit Hole when views are skipped', () => {
+    const rabbit = sp('rabbit-hole');
+    const exile = sp('exile');
+    const previous = makeState({
+      players: [
+        { position: 'red-queen', hand: [rabbit, num('W', 5)] },
+        { position: 'chess', hand: [exile, num('R', 7)] },
+        { hand: [num('W', 9)] },
+      ],
+    });
+    const afterRabbit = step(previous, { type: 'play', seat: 0, cardId: rabbit.id });
+    const afterExile = step(afterRabbit, { type: 'play', seat: 1, cardId: exile.id });
+    const afterTarget = step(afterExile, { type: 'choose-seat', seat: 1, target: 1 });
+    const current = step(afterTarget, { type: 'choose-location', seat: 1, location: 'red-queen' });
+    expect(detectAnimations(previous, current)).toContainEqual({
+      kind: 'special', name: 'rabbit-hole', seat: 0, destinations: ['white-queen'],
+    });
+  });
+
+  it('keeps processing Rabbit Hole moves after Shadow Creatures are cleared', () => {
+    const rabbit = sp('rabbit-hole');
+    const previous = makeState({
+      players: [
+        { position: 'red-queen', hand: [rabbit, num('W', 5)] },
+        { position: 'black-forest', hand: [num('R', 7)] },
+        { position: 'chess', hand: [num('W', 9)] },
+      ],
+      active: [{ card: sp('shadow-creatures'), seat: 1 }],
+    });
+    const current = step(previous, { type: 'play', seat: 0, cardId: rabbit.id });
+    expect(detectAnimations(previous, current)).toContainEqual({
+      kind: 'special', name: 'rabbit-hole', seat: 0, destinations: ['white-queen', 'chess', 'red-queen'],
+    });
   });
 
   it('finds draws, including the Jabberwocky and the start of a round', () => {

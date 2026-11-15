@@ -6,7 +6,12 @@ function fit(w: number, h: number) {
 }
 
 /** A fixed 1600x900 logical stage scaled to fit the window. */
-export function Stage({ children, background }: { children: ReactNode; background?: string }) {
+export function Stage({ children, background, className, modal }: {
+  children: ReactNode;
+  background?: string;
+  className?: string;
+  modal?: ReactNode;
+}) {
   const kind = useScreen();
   const { w, h } = STAGES[kind];
   const [scale, setScale] = useState(() => fit(w, h));
@@ -19,7 +24,7 @@ export function Stage({ children, background }: { children: ReactNode; backgroun
   return (
     <div className="stage-outer">
       <div
-        className={`stage ${kind}`}
+        className={`stage ${kind}${className ? ` ${className}` : ''}`}
         style={{
           width: w,
           height: h,
@@ -27,7 +32,8 @@ export function Stage({ children, background }: { children: ReactNode; backgroun
           backgroundImage: background ? `url(${background})` : undefined,
         }}
       >
-        {children}
+        <div inert={modal != null}>{children}</div>
+        {modal}
       </div>
     </div>
   );

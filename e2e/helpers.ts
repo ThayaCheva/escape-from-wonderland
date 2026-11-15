@@ -55,7 +55,7 @@ async function randomMoveOnce(page: Page): Promise<boolean> {
         return true;
       }
     }
-    const backs = prompt.locator('.card.clickable');
+    const backs = prompt.locator('.card.clickable[data-face="down"]');
     if (await backs.count()) {
       await backs.nth(rnd(await backs.count())).click();
       return true;
@@ -71,7 +71,16 @@ async function randomMoveOnce(page: Page): Promise<boolean> {
       await page.getByRole('button', { name: 'Choose' }).click();
       return true;
     }
-    if (/Choose 1|Give it|Play it/.test(text) && (await hand.count())) await clickCard(page, hand.first());
+    if (await prompt.getByRole('button', { name: 'Draw 5 instead', exact: true }).count()) {
+      if (await hand.count() && Math.random() < 0.8) {
+        await clickCard(page, hand.first());
+        await prompt.getByRole('button', { name: /^Play (Red|White) / }).click();
+      } else {
+        await prompt.getByRole('button', { name: 'Draw 5 instead', exact: true }).click();
+      }
+      return true;
+    }
+    if (/Choose 1|Give it/.test(text) && (await hand.count())) await clickCard(page, hand.first());
     const buttons = prompt.locator('button:enabled');
     await buttons.nth((await buttons.count()) - 1).click();
     return true;

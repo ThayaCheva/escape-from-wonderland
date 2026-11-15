@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { CardName, Edge, GameState, Seat } from '../../engine/types';
 import { CARD_DEFS } from '../../engine/cards';
-import { isStale, type Anim } from '../animationEvents';
+import type { Anim } from '../animationEvents';
 import type { Anchors, Point } from '../anchors';
 import { aliceImage } from '../assets';
 import { Card } from './Card';
@@ -27,7 +27,6 @@ interface Props {
 
 // fly in (~0.4 s), stay fully up for 3 s so the card can be read, then fade (~0.3 s)
 const SPECIAL_MS = 3800;
-const BANNER_MS = 1300;
 const ROUND_MS = 1900;
 const FLIGHT_MS = 650;
 const STAGGER_MS = 120;
@@ -74,8 +73,6 @@ export function Animations({ batch, state, edgeOf, online, viewerSeat, anchors, 
   const [items, setItems] = useState<Item[]>([]);
   // specials and banners each play one after another; this is when each channel is free again
   const free = useRef({ special: 0, banner: 0 });
-  const latest = useRef(state);
-  latest.current = state;
 
   useEffect(() => {
     if (!batch) return;
@@ -109,17 +106,40 @@ export function Animations({ batch, state, edgeOf, online, viewerSeat, anchors, 
         case 'special': {
           const def = CARD_DEFS[a.name];
           const from = anchor(a.seat).hand;
+          const startIn = inChannel('special', SPECIAL_MS);
+          const cheshire = a.name === 'cheshire-cat';
+          const rabbit = a.name === 'rabbit-hole';
           add(
-            <div className="anim-special" style={{ left: BOARD_CENTRE.x, top: BOARD_CENTRE.y, '--fx': `${from.x - BOARD_CENTRE.x}px`, '--fy': `${from.y - BOARD_CENTRE.y}px` } as CSSProperties}>
-              <Card card={{ id: 'anim', kind: def.kind, name: a.name }} faceUp size={phone ? 'preview-sm' : 'preview'} />
+            <div
+              className="anim-special"
+              data-effect={a.name}
+              style={{ left: BOARD_CENTRE.x, top: BOARD_CENTRE.y, '--fx': `${from.x - BOARD_CENTRE.x}px`, '--fy': `${from.y - BOARD_CENTRE.y}px` } as CSSProperties}
+            >
+              <div className="anim-special-art">
+                {rabbit ? <span className="anim-rabbit-portal" /> : null}
+                <Card
+                  card={{ id: 'anim', kind: def.kind, name: a.name }}
+                  faceUp
+                  size={phone ? 'preview-sm' : 'preview'}
+                  className={rabbit ? 'anim-rabbit-card' : cheshire ? 'anim-cheshire-card' : undefined}
+                />
+                {cheshire ? <span className="anim-cheshire-grin"><span /></span> : null}
+              </div>
               <div className="anim-caption">
                 {name(a.seat)} plays {def.title}
               </div>
             </div>,
-            inChannel('special', SPECIAL_MS),
+            startIn,
             SPECIAL_MS,
           );
-          add(<Sparkles at={BOARD_CENTRE} delay={350} />, free.current.special - SPECIAL_MS - now, SPECIAL_MS);
+          if (rabbit) {
+            for (const location of a.destinations) {
+              const at = anchors.token(location);
+              add(<span className="anim-rabbit-arrival" style={{ left: at.x, top: at.y }} />, 0, 1250);
+            }
+          } else if (!cheshire) {
+            add(<Sparkles at={BOARD_CENTRE} delay={350} />, startIn, SPECIAL_MS);
+          }
           break;
         }
         case 'draw': {
@@ -190,19 +210,9 @@ export function Animations({ batch, state, edgeOf, online, viewerSeat, anchors, 
           );
           break;
         case 'turn': {
-          if (!online) break; // one screen: the hand-off banner announces turns
-          const startIn = inChannel('banner', BANNER_MS);
-          // by the time a queued banner's moment comes the turn may have moved on: then skip it
-          setTimeout(() => {
-            if (isStale(a, latest.current)) return;
-            add(
-            <div className={`anim-banner turn${a.seat === viewerSeat ? ' mine' : ''}`}>
-              <div className="banner-big">{a.seat === viewerSeat ? 'Your turn' : `${name(a.seat)}'s turn`}</div>
-            </div>,
-            0,
-            BANNER_MS,
-          );
-          }, startIn);
+          if (!online || a.seat !== viewerSeat) break;
+          const p = anchor(a.seat).plate;
+          add(<div className="anim-pulse" style={{ left: p.x, top: p.y }} />, 0, 1400);
           break;
         }
         case 'win': {

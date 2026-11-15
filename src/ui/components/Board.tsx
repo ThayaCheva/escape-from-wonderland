@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameState, LocationId, Position } from '../../engine/types';
 import { LOCATIONS, LOCATION_NAMES } from '../../engine/board';
+import { actingSeat } from '../../engine/step';
 import { BOARD_IMAGE, aliceImage } from '../assets';
 import { DECK_BOX, DISCARD_BOX, LOCATION_AREAS, PILE_POINT, TOKEN_SLOTS } from '../boardGeometry';
 import { loadMasks, locationAt, maskUrl, type Masks } from '../locationMasks';
@@ -170,7 +171,7 @@ export function Board(props: Props) {
           />
         ))}
         {state.pile.length > 0 ? (
-          <div className="pile-label">to beat: {state.pile[state.pile.length - 1].effective}</div>
+          <div className="pile-label"><span>To beat</span><strong>{state.pile[state.pile.length - 1].effective}</strong></div>
         ) : null}
         {props.callout ? (
           <div className="callout" data-testid="callout">
@@ -182,26 +183,19 @@ export function Board(props: Props) {
       {effects.length > 0 ? (
         <div className="effects-panel" data-testid="effects">
           <div className="effects-title">Active effects</div>
-          {effects.map((e) => {
-            const clickable = selectableActive.includes(e.index);
-            return (
-              <div
-                key={e.index}
-                className={`effect-row${clickable ? ' clickable' : ''}`}
-                role={clickable ? 'button' : undefined}
-                onClick={
-                  clickable
-                    ? (ev) => {
-                        ev.stopPropagation();
-                        onActiveClick?.(e.index);
-                      }
-                    : undefined
-                }
-              >
-                {e.text}
-              </div>
-            );
-          })}
+          {effects.map((e) => selectableActive.includes(e.index) ? (
+            <button
+              type="button"
+              key={e.index}
+              className="effect-row clickable"
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onActiveClick?.(e.index);
+              }}
+            >
+              {e.text}
+            </button>
+          ) : <div key={e.index} className="effect-row">{e.text}</div>)}
         </div>
       ) : null}
 
@@ -233,7 +227,7 @@ export function Board(props: Props) {
       {tokens.map((t) => (
         <img
           key={t.seat}
-          className="token"
+          className={`token${t.seat === actingSeat(state) ? ' token-acting' : ''}`}
           src={aliceImage(t.alice)}
           alt={t.name}
           title={t.name}

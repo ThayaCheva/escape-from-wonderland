@@ -37,17 +37,19 @@ export function Card({ card, faceUp, size, selected, dimmed, highlight, modifier
   if (highlight) classes.push('highlight');
   if (onClick) classes.push('clickable');
   if (className) classes.push(className);
+  const Element = onClick ? 'button' : 'div';
   return (
-    <div
+    <Element
       className={classes.join(' ')}
       style={{ width: w, height: h, ...style }}
       data-face={showFace ? 'up' : 'down'}
       onClick={onClick}
-      role={onClick ? 'button' : undefined}
+      type={onClick ? 'button' : undefined}
+      aria-pressed={onClick ? selected : undefined}
       title={title}
     >
       <img src={showFace ? cardImage(card) : CARD_BACK} alt={showFace ? cardLabel(card) : 'Card back'} draggable={false} />
       {showFace && modifier ? <img className="modifier-badge" src={MODIFIER_IMAGE[modifier]} alt={modifier > 0 ? '+1' : '-1'} /> : null}
-    </div>
+    </Element>
   );
 }

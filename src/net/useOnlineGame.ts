@@ -16,8 +16,8 @@ export interface OnlineState {
   connected: boolean[];
   /** Latest error from the server, with a counter so repeats still show. */
   error: { message: string; n: number } | null;
-  /** Whether this browser's connection to the server is currently open. */
-  socketOpen: boolean;
+  /** A game view has arrived on the current socket. */
+  gameReady: boolean;
   /** True while reopening a link to take back a stored seat. */
   rejoining: boolean;
 }
@@ -30,7 +30,7 @@ const IDLE: OnlineState = {
   view: null,
   connected: [],
   error: null,
-  socketOpen: false,
+  gameReady: false,
   rejoining: false,
 };
 const BASE_TITLE = 'Escape from Wonderland';
@@ -98,6 +98,7 @@ export function useOnlineGame() {
         setState((s) => ({
           ...s,
           status: 'game',
+          gameReady: true,
           view: msg.view,
           seat: msg.seat,
           connected: msg.connected,
@@ -110,7 +111,7 @@ export function useOnlineGame() {
           resuming.current = false;
           if (room.current) storeToken(room.current, null);
           room.current = null;
-          setState({ ...IDLE, socketOpen: true, error: { message: msg.message, n: ++errors.current } });
+          setState({ ...IDLE, error: { message: msg.message, n: ++errors.current } });
           return;
         }
         setState((s) => ({ ...s, status: statusAfterError(s.status), error: { message: msg.message, n: ++errors.current } }));
@@ -128,8 +129,8 @@ export function useOnlineGame() {
     const socket = new WebSocket(socketUrl());
     ws.current = socket;
     socket.onopen = () => {
+      if (ws.current !== socket) return;
       retry.current = 0;
-      setState((s) => ({ ...s, socketOpen: true }));
       const token = room.current ? storedToken(room.current) : null;
       if (room.current && token) {
         resuming.current = true;
@@ -140,6 +141,7 @@ export function useOnlineGame() {
       pending.current = null;
     };
     socket.onmessage = (e) => {
+      if (ws.current !== socket) return;
       try {
         onMessage(JSON.parse(String(e.data)));
       } catch {
@@ -147,8 +149,9 @@ export function useOnlineGame() {
       }
     };
     socket.onclose = () => {
-      if (ws.current === socket) ws.current = null;
-      setState((s) => ({ ...s, socketOpen: false }));
+      if (ws.current !== socket) return;
+      ws.current = null;
+      setState((s) => ({ ...s, gameReady: false }));
       if (!active.current) return;
       const delay = Math.min(8000, 1000 * 2 ** retry.current++);
       setTimeout(() => active.current && connect(), delay);

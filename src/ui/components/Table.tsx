@@ -13,7 +13,7 @@ import { useScreen } from '../screen';
 import { PHONE_PANEL } from '../geometry';
 import { anchorsFor } from '../anchors';
 import { LOCATIONS } from '../../engine/board';
-import { BACKGROUND_IMAGE } from '../assets';
+import { TABLE_IMAGE } from '../assets';
 import { EDGE_ROTATION, edgeFor } from '../layout';
 import { confirm, faceUpHandSeat, needsHandoff, type UiGate } from '../visibility';
 import { Board } from './Board';
@@ -23,6 +23,7 @@ import { HandoffBanner } from './HandoffBanner';
 import { PlayerEdge } from './PlayerEdge';
 import { OpponentPanel } from './OpponentPanel';
 import { PromptPanel } from './PromptPanel';
+import { RevealedHand } from './RevealedHand';
 import { RulesPanel } from './RulesPanel';
 import { Stage } from './Stage';
 
@@ -46,7 +47,7 @@ const WAITING_FOR: Partial<Record<string, string>> = {
   'eat-me': 'is choosing cards to eat',
   'vorpal-target': 'is choosing what to slay',
   'execution-declare': 'is declaring a number',
-  'execution-choose': 'is choosing which card to play',
+  'execution-choose': 'is responding to Execution Order',
   'choose-player': 'is choosing a player',
   'view-hand': 'is looking at a hand',
   'exile-location': 'is choosing a location',
@@ -80,9 +81,10 @@ const SINGLE_SELECT = new Set(['execution-choose', 'vines-give']);
 export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, offline }: Props) {
   const [gate, setGate] = useState<UiGate>({ confirmedSeat: null, peeked: false });
   const [selected, setSelected] = useState<string[]>([]);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ cardId: string; seat: number; inspectOnly: boolean } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const rulesButton = useRef<HTMLButtonElement>(null);
   const [drag, setDrag] = useState<{ card: CardT; x: number; y: number; over: boolean } | null>(null);
   const [hoverCard, setHoverCard] = useState<CardT | null>(null);
   const [confirmPass, setConfirmPass] = useState(false);
@@ -126,15 +128,23 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   const faceSeat = online ? viewerSeat : faceUpHandSeat(state, gate);
   /** True when the person at this screen is the one who must act. */
   const mine = !online || acting === viewerSeat;
-  const canAct = !handoff && mine && state.phase !== 'game-over';
-  const myTurnNoPrompt = !online && !handoff && !prompt && state.phase !== 'game-over';
+  const canAct = !handoff && mine && !offline && state.phase !== 'game-over';
+  const handReveal = canAct && prompt?.type === 'view-hand' ? prompt : null;
+  const canPlayFromHand = canAct && (!prompt || prompt.type === 'drink-me-extra' || prompt.type === 'setup-pick');
+  const selectingCards = canAct && prompt && (MULTI_SELECT.has(prompt.type) || SINGLE_SELECT.has(prompt.type));
+  const myTurnNoPrompt = !online && canAct && !prompt;
 
-  // clear transient selections whenever the situation changes
-  const situation = `${state.log.length}|${state.prompts.length}|${prompt?.type}|${acting}`;
+  const newest = state.log[state.log.length - 1];
+  const situation = `${state.round}|${state.log.length}|${newest}|${state.prompts.length}|${prompt?.type}|${acting}`;
   useEffect(() => {
     setSelected([]);
-    setPreview(null);
   }, [situation]);
+  useEffect(() => {
+    setPreview((current) => current?.inspectOnly ? current : null);
+  }, [situation, canPlayFromHand]);
+  useEffect(() => {
+    if (!canPlayFromHand || showRules) endDrag.current?.();
+  }, [canPlayFromHand, showRules]);
 
   useEffect(() => {
     if (notice) setToast(notice.message);
@@ -152,7 +162,6 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   };
 
   // a short callout and a "pop" on the pile whenever someone plays a card
-  const newest = state.log[state.log.length - 1];
   const pileTop = state.pile[state.pile.length - 1]?.card.id ?? null;
   useEffect(() => {
     const play = lastPlayLine(state.log);
@@ -177,7 +186,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
     if (!autoPass) return;
     const t = setTimeout(() => send({ type: 'pass', seat: acting }), 2200);
     return () => clearTimeout(t);
-  }, [autoPass, acting, state.log.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [autoPass, acting, situation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const overBoard = (x: number, y: number) => {
     const r = document.querySelector('[data-testid="board"]')?.getBoundingClientRect();
@@ -186,7 +195,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
 
   /** Press on a card in your hand: a click previews it, a drag onto the board plays it. */
   function onCardPointerDown(card: CardT, e: React.PointerEvent) {
-    if (e.button !== 0 || handoff || faceSeat !== acting || endDrag.current) return;
+    if (e.button !== 0 || !canPlayFromHand || faceSeat !== acting || endDrag.current) return;
     const start = { x: e.clientX, y: e.clientY };
     const seat = acting;
     let dragging = false;
@@ -224,18 +233,21 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
     window.addEventListener('blur', stop);
   }
 
-  const previewCard = preview ? state.players[acting].hand.find((c) => c.id === preview) ?? null : null;
+  const previewCard = preview && faceSeat === preview.seat
+    ? state.players[preview.seat].hand.find((c) => c.id === preview.cardId)
+    : undefined;
+  useEffect(() => {
+    if (!previewCard) setPreview(null);
+  }, [previewCard]);
 
   function onOwnCardClick(card: CardT) {
-    if (suppressClick.current || handoff || faceSeat !== acting) return;
-    if (!prompt || prompt.type === 'drink-me-extra' || prompt.type === 'setup-pick') {
-      setPreview(card.id);
-      return;
-    }
-    if (MULTI_SELECT.has(prompt.type)) {
-      setSelected((s) => (s.includes(card.id) ? s.filter((x) => x !== card.id) : [...s, card.id]));
-    } else if (SINGLE_SELECT.has(prompt.type)) {
-      setSelected((s) => (s[0] === card.id ? [] : [card.id]));
+    if (suppressClick.current || handoff || faceSeat === null) return;
+    if (selectingCards && MULTI_SELECT.has(prompt.type)) {
+      if (!dimmed(card)) setSelected((s) => (s.includes(card.id) ? s.filter((x) => x !== card.id) : [...s, card.id]));
+    } else if (selectingCards) {
+      if (!dimmed(card)) setSelected((s) => (s[0] === card.id ? [] : [card.id]));
+    } else {
+      setPreview({ cardId: card.id, seat: faceSeat, inspectOnly: !canPlayFromHand });
     }
   }
 
@@ -279,6 +291,19 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   const targetSeats = canAct && prompt?.type === 'choose-player' ? prompt.options : [];
 
   const actingPlayer = state.players[acting];
+  const disconnected = online && connected?.[acting] === false;
+  const waiting = online && !mine && state.phase !== 'game-over';
+  const turnTitle = offline ? 'Reconnecting…'
+    : disconnected && waiting ? `Waiting for ${actingPlayer.name} to reconnect…`
+    : waiting ? `Waiting for ${actingPlayer.name}`
+    : state.phase === 'game-over' ? 'Game complete'
+    : state.phase === 'setup' ? (online ? 'Your choice' : `${actingPlayer.name} chooses`)
+    : online ? 'Your turn' : `${actingPlayer.name}’s turn`;
+  const turnDetail = offline ? null
+    : waiting ? (disconnected ? null : prompt && WAITING_FOR[prompt.type] ? `${actingPlayer.name} ${WAITING_FOR[prompt.type]}.` : null)
+    : autoPass ? 'No cards you can play. Passing…'
+    : canAct && !prompt && online ? (phone ? 'Tap a card to inspect or play it.' : 'Select a card to inspect it, or drag it onto the board.')
+    : null;
   const dragDef = drag && !isNumber(drag.card) ? CARD_DEFS[drag.card.name] : null;
   const dragLocation = dragDef?.kind === 'event' ? dragDef.location : null;
   const hovered =
@@ -314,7 +339,21 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   };
 
   return (
-    <Stage background={BACKGROUND_IMAGE}>
+    <Stage
+      background={TABLE_IMAGE}
+      className={`table-stage${online ? ' table-online' : ' table-hotseat'}`}
+      modal={
+        showRules ? <RulesPanel onClose={() => setShowRules(false)} returnFocus={rulesButton} />
+          : handReveal ? (
+            <RevealedHand
+              key={`${handReveal.seat}:${handReveal.target}`}
+              player={state.players[handReveal.target]}
+              rotation={rotation}
+              onDone={() => send({ type: 'ack', seat: handReveal.seat })}
+            />
+          ) : null
+      }
+    >
       <Board
         state={state}
         selectableLocations={selectableLocations}
@@ -357,10 +396,10 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
           glowing={seat === acting}
           targetable={targetSeats.includes(seat)}
           onPlateClick={() => send({ type: 'choose-seat', seat: acting, target: seat })}
-          selectedIds={seat === acting ? selected : []}
-          isDimmed={seat === acting ? dimmed : online && seat === viewerSeat ? () => true : undefined}
-          onCardClick={seat === acting && faceSeat === acting ? onOwnCardClick : undefined}
-          onCardPointerDown={seat === acting && faceSeat === acting ? onCardPointerDown : undefined}
+          selectedIds={seat === acting && selectingCards ? selected : undefined}
+          isDimmed={canAct && seat === acting ? dimmed : online && seat === viewerSeat ? () => true : undefined}
+          onCardClick={faceSeat === seat ? onOwnCardClick : undefined}
+          onCardPointerDown={faceSeat === seat && canPlayFromHand ? onCardPointerDown : undefined}
           onCardHover={faceSeat === seat ? setHoverCard : undefined}
           cardSize={online && seat === viewerSeat ? (phone ? 'hand-phone' : 'hand-lg') : 'hand'}
           where={locationLine(state, seat, seat === (online ? viewerSeat : acting))}
@@ -370,32 +409,47 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
         ),
       )}
 
-      <div className="corner corner-tl">
-        <GameLog lines={state.log} />
-      </div>
-      <div className="corner corner-tr">
-        <button className="btn small" onClick={() => setShowRules(true)}>
-          Rules
-        </button>
-        {online ? (
-          <button
-            className="btn small"
-            title="A short chime when it becomes your turn"
-            onClick={() => {
-              setSoundOn(!sound);
-              setSound(!sound);
-            }}
-          >
-            Sound: {sound ? 'on' : 'off'}
+      {!phone ? (
+        <aside className="corner corner-tl" aria-label="Table activity">
+          <h1 className="table-wordmark"><span>Escape from</span> Wonderland</h1>
+          <GameLog lines={state.log} />
+        </aside>
+      ) : null}
+      <aside className="corner corner-tr" aria-label="Table controls">
+        <div className="table-toolbar">
+          <button className="btn small" ref={rulesButton} onClick={() => setShowRules(true)}>
+            Rules
           </button>
-        ) : null}
-        <button className="btn small" onClick={onQuit}>
-          Menu
-        </button>
-        <div className="round-info">Round {state.round}</div>
-      </div>
+          {online ? (
+            <button
+              className="btn small"
+              aria-pressed={sound}
+              title="A short chime when it becomes your turn"
+              onClick={() => {
+                setSoundOn(!sound);
+                setSound(!sound);
+              }}
+            >
+              Sound: {sound ? 'on' : 'off'}
+            </button>
+          ) : null}
+          <button className="btn small" onClick={onQuit}>
+            Menu
+          </button>
+        </div>
+        <section
+          className={`turn-panel${canAct ? ' is-mine' : ''}${offline || disconnected ? ' interrupted' : ''}`}
+          role="status"
+          data-testid={offline ? 'offline' : autoPass ? 'no-play' : waiting ? 'waiting' : undefined}
+        >
+          <div className="round-info">{state.phase === 'setup' ? 'Starting cards' : `Round ${state.round}`}</div>
+          <div className="turn-heading">{turnTitle}</div>
+          {turnDetail ? <div className="turn-detail">{turnDetail}</div> : null}
+        </section>
+        {phone ? <GameLog lines={state.log} /> : null}
+      </aside>
 
-      {canAct && prompt ? (
+      {canAct && prompt && prompt.type !== 'view-hand' ? (
         (() => {
           const compact = BOARD_PROMPTS.has(prompt.type);
           const pos = phone ? PHONE_PANEL : (compact ? PANEL_POS_EDGE : PANEL_POS)[actingEdge];
@@ -417,38 +471,22 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
 
       {previewCard && !handoff ? (
         (() => {
-          const info = previewInfo(previewCard);
+          const info = canPlayFromHand && !preview?.inspectOnly ? previewInfo(previewCard) : undefined;
           return (
             <CardPreview
               card={previewCard}
               rotation={rotation}
-              actionLabel={info.label}
-              reason={info.reason}
-              onAction={() => send(info.action)}
+              action={info ? { label: info.label, reason: info.reason, run: () => send(info.action) } : undefined}
               onCancel={() => setPreview(null)}
             />
           );
         })()
       ) : null}
 
-      {autoPass ? (
-        <div className="waiting-banner no-play" data-testid="no-play">
-          No cards you can play — passing…
-        </div>
-      ) : null}
-      {online && !mine && state.phase !== 'game-over' ? (
-        <div className="waiting-banner" data-testid="waiting">
-          {connected && connected[acting] === false
-            ? `Waiting for ${state.players[acting].name} to reconnect…`
-            : prompt && WAITING_FOR[prompt.type]
-              ? `${state.players[acting].name} ${WAITING_FOR[prompt.type]}…`
-              : `Waiting for ${state.players[acting].name}…`}
-        </div>
-      ) : null}
-      {hovered && !phone ? (
+      {hovered && !phone && !previewCard && !showRules ? (
         online ? (
-          <div className="hover-preview" style={{ left: 380, top: 268 }}>
-            <Card card={hovered} faceUp size="preview" />
+          <div className="hover-preview rail-preview" aria-hidden>
+            <Card card={hovered} faceUp size="preview-sm" />
           </div>
         ) : (
           <div className="hover-preview" style={{ left: 800, top: 450, transform: `translate(-50%, -50%) rotate(${rotation}deg)` }}>
@@ -475,13 +513,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
         opponentIndex={opponentIndex}
         phone={phone}
       />
-      {offline ? (
-        <div className="offline-bar" data-testid="offline">
-          Reconnecting…
-        </div>
-      ) : null}
-      {toast ? <div className="toast">{toast}</div> : null}
-      {showRules ? <RulesPanel onClose={() => setShowRules(false)} /> : null}
+      {toast ? <div className="toast" role="alert">{toast}</div> : null}
       {handoff ? <HandoffBanner state={state} onConfirm={() => setGate(confirm(state))} /> : null}
     </Stage>
   );

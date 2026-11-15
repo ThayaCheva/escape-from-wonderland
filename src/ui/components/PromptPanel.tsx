@@ -1,10 +1,10 @@
 import type { GameAction, GameState, NumberCard, Prompt } from '../../engine/types';
-import { isNumber } from '../../engine/cards';
+import { cardLabel, isNumber } from '../../engine/cards';
 import { Card } from './Card';
 
 interface Props {
   state: GameState;
-  prompt: Prompt;
+  prompt: Exclude<Prompt, { type: 'view-hand' }>;
   rotation: number;
   selectedIds: string[];
   send: (a: GameAction) => void;
@@ -96,38 +96,48 @@ export function PromptPanel({ state, prompt, rotation, selectedIds, send, compac
         </>
       );
       break;
-    case 'execution-choose':
+    case 'execution-choose': {
+      const matches = hand.filter((card) => isNumber(card) && card.value === prompt.value);
+      const match = matches.length === 1 ? matches[0] : matches.find((card) => selectedIds.includes(card.id));
+      const declarer = name(prompt.bySeat);
       body = (
         <>
-          <p>
-            {name(prompt.bySeat)} declared {prompt.value}. You hold more than one — choose which to play.
-          </p>
-          <button className="btn" disabled={selectedIds.length !== 1} onClick={() => send({ type: 'choose-cards', seat, cardIds: selectedIds })}>
-            Play it
-          </button>
+          <p><strong>Execution Order</strong></p>
+          <p>{declarer} declared {prompt.value}.</p>
+          {matches.length > 0 ? (
+            <>
+              {matches.length > 1 ? <p>Choose a highlighted card to play.</p> : null}
+              <p className="muted">If you play a match, you skip your next turn and {declarer} draws 5 cards.</p>
+            </>
+          ) : (
+            <p>You have no matching card. Draw 5 cards to continue.</p>
+          )}
+          <div className="row execution-options">
+            {matches.length > 0 ? (
+              <button
+                type="button"
+                className="btn primary"
+                disabled={!match}
+                onClick={() => match && send({ type: 'choose-cards', seat, cardIds: [match.id] })}
+              >
+                {match ? `Play ${cardLabel(match)}` : 'Play selected card'}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={matches.length === 0 ? 'btn primary' : 'btn'}
+              onClick={() => send({ type: 'choose-cards', seat, cardIds: [] })}
+            >
+              {matches.length === 0 ? 'Draw 5 cards' : 'Draw 5 instead'}
+            </button>
+          </div>
         </>
       );
       break;
+    }
     case 'choose-player': {
       const what = { caterpillar: 'Wisdom of Caterpillar', exile: 'Exile', vines: 'Vines' }[prompt.purpose];
       body = <p>{what}: click a highlighted player.</p>;
-      break;
-    }
-    case 'view-hand': {
-      const target = state.players[prompt.target];
-      body = (
-        <>
-          <p>{target.name}’s hand:</p>
-          <div className="panel-hand">
-            {target.hand.map((c) => (
-              <Card key={c.id} card={c} faceUp size="hand" />
-            ))}
-          </div>
-          <button className="btn" onClick={() => send({ type: 'ack', seat })}>
-            OK
-          </button>
-        </>
-      );
       break;
     }
     case 'exile-location':
