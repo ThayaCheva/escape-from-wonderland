@@ -1131,3 +1131,9 @@ body,
   font-size: 15px;
   text-shadow: 0 1px 4px #000;
 }
+
+.waiting-banner.no-play {
+  color: #fff;
+  border-color: var(--red);
+  background: rgba(142, 68, 72, 0.92);
+}

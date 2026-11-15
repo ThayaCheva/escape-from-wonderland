@@ -118,3 +118,33 @@ describe('review fixes', () => {
     expect(changedSince('a', null)).toBeNull();
   });
 });
+
+describe('shouldAutoPass', () => {
+  it('passes for a player whose turn it is and who has nothing they can play', async () => {
+    const { shouldAutoPass } = await import('../info');
+    const stuck = makeState({ players: [{ hand: [num('W', 3), num('W', 12)] }, {}, {}], pile: [pileOf(num('W', 9), 1)] });
+    expect(shouldAutoPass(stuck, 0)).toBe(true);
+    const canPlay = makeState({ players: [{ hand: [num('R', 10)] }, {}, {}], pile: [pileOf(num('W', 9), 1)] });
+    expect(shouldAutoPass(canPlay, 0)).toBe(false);
+  });
+
+  it('never passes for someone else, during a prompt, after acting, or outside play', async () => {
+    const { shouldAutoPass } = await import('../info');
+    const s = makeState({ players: [{ hand: [num('W', 3)] }, {}, {}], pile: [pileOf(num('W', 9), 1)] });
+    expect(shouldAutoPass(s, 1)).toBe(false);
+    s.prompts = [{ type: 'eat-me', seat: 0 }];
+    expect(shouldAutoPass(s, 0)).toBe(false);
+    s.prompts = [];
+    s.turnActionTaken = true;
+    expect(shouldAutoPass(s, 0)).toBe(false);
+    s.turnActionTaken = false;
+    s.phase = 'game-over';
+    expect(shouldAutoPass(s, 0)).toBe(false);
+  });
+
+  it('respects the Drink Me lock (a playable action does not count)', async () => {
+    const { shouldAutoPass } = await import('../info');
+    const s = makeState({ players: [{ hand: [sp('exile'), num('W', 3)], drinkMeLock: 'active' }, {}, {}], pile: [pileOf(num('W', 9), 1)] });
+    expect(shouldAutoPass(s, 0)).toBe(true);
+  });
+});

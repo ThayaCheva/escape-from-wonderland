@@ -4,7 +4,7 @@ import type { Card as CardT, Edge, GameAction, GameState, LocationId } from '../
 import { actingSeat } from '../../engine/step';
 import { checkPlay } from '../../engine/rules';
 import { CARD_DEFS, isNumber } from '../../engine/cards';
-import { changedSince, dropAction, lastPlayLine, locationLine, nextSeatToAct, passNeedsConfirm } from '../info';
+import { changedSince, dropAction, lastPlayLine, locationLine, nextSeatToAct, passNeedsConfirm, shouldAutoPass } from '../info';
 import { Card } from './Card';
 import { Animations } from './Animations';
 import { detectAnimations, type Anim } from '../animationEvents';
@@ -161,6 +161,14 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   }, [callout]);
 
   useEffect(() => setConfirmPass(false), [acting, prompt?.type]);
+
+  // nothing playable on your turn: say so, then pass for you (the rulebook's "skip their turn")
+  const autoPass = canAct && shouldAutoPass(state, acting);
+  useEffect(() => {
+    if (!autoPass) return;
+    const t = setTimeout(() => send({ type: 'pass', seat: acting }), 2200);
+    return () => clearTimeout(t);
+  }, [autoPass, acting, state.log.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const overBoard = (x: number, y: number) => {
     const r = document.querySelector('[data-testid="board"]')?.getBoundingClientRect();
@@ -388,7 +396,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
         })()
       ) : null}
 
-      {myTurnNoPrompt && !gate.peeked ? (
+      {myTurnNoPrompt && !gate.peeked && !autoPass ? (
         <div className="prompt-anchor" style={{ left: PANEL_POS[actingEdge].x, top: PANEL_POS[actingEdge].y }}>
           <div className="prompt-panel hint" style={{ transform: `translate(-50%, -50%) rotate(${rotation}deg)` }}>
             Click <b>Peek</b> to look at your cards.
@@ -412,6 +420,11 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
         })()
       ) : null}
 
+      {autoPass ? (
+        <div className="waiting-banner no-play" data-testid="no-play">
+          No cards you can play — passing…
+        </div>
+      ) : null}
       {online && !mine && state.phase !== 'game-over' ? (
         <div className="waiting-banner" data-testid="waiting">
           {connected && connected[acting] === false

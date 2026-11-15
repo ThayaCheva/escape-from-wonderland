@@ -101,3 +101,14 @@ export function changedSince<T>(previous: T | null | undefined, current: T | nul
   if (previous === undefined || current === null || current === previous) return null;
   return current;
 }
+
+/** It's this player's turn, nothing is waiting on them, and no card in their hand can be played. */
+export function shouldAutoPass(state: GameState, seat: Seat): boolean {
+  return (
+    state.phase === 'playing' &&
+    state.prompts.length === 0 &&
+    state.current === seat &&
+    !state.turnActionTaken &&
+    !hasLegalPlay(state, seat)
+  );
+}
