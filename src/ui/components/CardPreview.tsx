@@ -8,25 +8,27 @@ import { useScreen } from '../screen';
 interface Props {
   card: CardT;
   rotation: number;
+  playedBy?: string;
+  returnFocus?: HTMLElement;
   action?: { label: string; reason: string | null; run: () => void };
   onCancel: () => void;
 }
 
-export function CardPreview({ card, rotation, action, onCancel }: Props) {
+export function CardPreview({ card, rotation, playedBy, returnFocus, action, onCancel }: Props) {
   const def = isNumber(card) ? null : CARD_DEFS[card.name];
   const titleId = useId();
   const back = useRef<HTMLButtonElement>(null);
   const primary = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    const previous = document.activeElement;
+    const previous = returnFocus ?? document.activeElement;
     back.current?.focus();
     return () => {
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
-  }, []);
+  }, [returnFocus]);
 
   return (
-    <div className="overlay" onClick={onCancel}>
+    <div className={`overlay${playedBy !== undefined ? ' played-card-overlay' : ''}`} onClick={onCancel}>
       <div
         className="preview"
         role="dialog"
@@ -47,13 +49,14 @@ export function CardPreview({ card, rotation, action, onCancel }: Props) {
       >
         <Card card={card} faceUp size={useScreen() === 'phone' ? 'preview-sm' : 'preview'} />
         <div className="preview-side">
+          {playedBy !== undefined ? <p className="preview-attribution">Played by {playedBy}</p> : null}
           <h2 id={titleId}>{cardLabel(card)}</h2>
           {def ? (
             <p className="preview-kind">
               {def.kind === 'action' ? 'Action' : `Event — ${def.location ? LOCATION_NAMES[def.location] : ''}`}
             </p>
           ) : null}
-          {!isNumber(card) && card.name === 'execution-order' ? <p className="preview-rules">{def?.text}</p> : null}
+          {def && (playedBy !== undefined || def.name === 'execution-order') ? <p className="preview-rules">{def.text}</p> : null}
           {action?.reason ? <p className="preview-reason">{action.reason}</p> : null}
           <div className="row">
             <button className="btn" ref={back} onClick={onCancel}>

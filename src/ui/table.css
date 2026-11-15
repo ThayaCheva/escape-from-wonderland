@@ -1,22 +1,17 @@
-.stage-outer:has(.table-stage) {
-  background: #071410;
-}
-
 .table-stage {
-  --felt: #12251f;
-  --felt-dark: #0c1b17;
+  --table-panel: #313747;
+  --table-highlight: #3c475e;
   --line: #b99a5852;
   --brass: #e5c88a;
   --cream: #f5eddb;
-  --muted-cream: #c8c9b1;
+  --muted-cream: #d2cbbf;
   --ui: system-ui, sans-serif;
-  background-color: var(--felt-dark);
   color: var(--cream);
 }
 
 .table-stage .board {
   border-radius: 9px;
-  box-shadow: 0 0 0 1px #e4ca94a0, 0 0 0 6px #1a2a22, 0 0 0 7px #aa8d4f72, 0 18px 42px #0008;
+  box-shadow: 0 0 0 1px #e4ca94a0, 0 0 0 6px var(--navy-deep), 0 0 0 7px #aa8d4f72, 0 18px 42px #0008;
   transition: box-shadow 180ms ease;
 }
 
@@ -48,7 +43,7 @@
   margin: 0 0 42px;
   color: var(--brass);
   font: 400 40px/0.9 var(--heading);
-  text-shadow: 0 2px 9px #020906;
+  text-shadow: 0 2px 9px #080a12;
 }
 
 .table-wordmark span {
@@ -65,10 +60,17 @@
 .table-stage .plate,
 .table-stage .effects-panel,
 .table-stage .callout {
-  background: linear-gradient(145deg, var(--felt), var(--felt-dark));
+  background: linear-gradient(145deg, var(--table-panel), var(--navy-deep));
   border: 1px solid var(--line);
   border-radius: 11px;
   box-shadow: 0 6px 20px #0004, inset 0 1px #ffffff09;
+}
+
+.activity-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 8px;
 }
 
 .activity-toggle {
@@ -76,14 +78,36 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  width: 100%;
+  flex: 1;
+  border-radius: 8px;
   border: 0;
-  border-radius: inherit;
   padding: 11px 14px;
   background: transparent;
   color: var(--brass);
   font: 400 19px/1 var(--heading);
   cursor: pointer;
+}
+
+.last-played-button {
+  flex: none;
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cream);
+  font: 600 12px/1.2 var(--ui);
+  cursor: pointer;
+}
+
+.last-played-button:hover:not(:disabled) {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.last-played-button:disabled {
+  opacity: 0.48;
+  cursor: default;
 }
 
 .activity-toggle:hover {
@@ -146,14 +170,14 @@
   min-height: 36px;
   padding: 5px 11px;
   border-color: var(--line);
-  background: #0e211be8;
+  background: var(--navy-deep);
   color: var(--cream);
   font: 600 12px/1.2 var(--ui);
 }
 
 .table-stage .table-toolbar .btn:hover,
 .table-stage .table-toolbar .btn[aria-pressed='true'] {
-  background: #293b2c;
+  background: var(--table-highlight);
   color: var(--brass);
 }
 
@@ -165,7 +189,7 @@
 
 .turn-panel.is-mine {
   border-color: #e5c88a9c;
-  background: linear-gradient(135deg, #344633, #13251d);
+  background: linear-gradient(135deg, var(--table-highlight), var(--navy-deep));
 }
 
 .turn-panel.interrupted {
@@ -226,7 +250,7 @@
 .table-stage .plate-portrait {
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: var(--felt-dark);
+  background: var(--navy-deep);
   box-shadow: 0 2px 6px #0005;
 }
 
@@ -245,7 +269,7 @@
 
 .table-online .player-edge[data-viewer='true'] {
   border: 1px solid var(--line);
-  background: linear-gradient(170deg, #172b2296, #091814e8);
+  background: linear-gradient(170deg, #31374796, #171a24e8);
   box-shadow: 0 9px 26px #0004, inset 0 1px #ffffff08;
 }
 
@@ -273,9 +297,14 @@
 }
 
 .rail-preview {
-  left: 1332px;
+  right: 38px;
   bottom: 40px;
-  animation: fadein 160ms ease both;
+  width: 300px;
+}
+
+.table-stage:has(.opponent.edge-right) .rail-preview {
+  bottom: 22px;
+  width: 228px;
 }
 
 .table-stage .effects-panel {
@@ -302,7 +331,7 @@
   padding: 5px 4px;
   border: 1px solid #e2c17d8f;
   border-radius: 8px;
-  background: var(--felt-dark);
+  background: var(--navy-deep);
   box-shadow: 0 3px 8px #0004;
   color: var(--brass);
 }
@@ -321,7 +350,7 @@
 .table-stage .box-count {
   min-width: 25px;
   padding: 2px 5px;
-  background: var(--felt-dark);
+  background: var(--navy-deep);
   color: var(--cream);
   text-align: center;
   font: 600 11px/1.35 var(--ui);
@@ -367,9 +396,20 @@
   line-height: 1.2;
 }
 
+.played-card-overlay {
+  z-index: 65;
+}
+
+.preview-attribution {
+  margin: 0 0 6px;
+  color: #765931;
+  font: 600 12px/1.25 var(--ui);
+  overflow-wrap: anywhere;
+}
+
 .revealed-overlay {
   z-index: 65;
-  background: #071410db;
+  background: #121620db;
 }
 
 .table-stage .revealed-hand {
@@ -380,7 +420,7 @@
   padding: 22px 26px;
   border: 1px solid var(--brass);
   border-radius: 15px;
-  background: linear-gradient(145deg, #23382a, var(--felt-dark));
+  background: linear-gradient(145deg, var(--table-panel), var(--navy-deep));
   color: var(--cream);
   text-align: left;
 }
@@ -411,7 +451,7 @@
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #07141055;
+  background: #13172255;
 }
 
 .revealed-browser p {
@@ -519,7 +559,7 @@
 }
 
 .stage.phone.table-stage .board {
-  box-shadow: 0 0 0 1px #e4ca94a0, 0 0 0 3px #1a2a22, 0 0 0 4px #aa8d4f72, 0 8px 20px #0007;
+  box-shadow: 0 0 0 1px #e4ca94a0, 0 0 0 3px var(--navy-deep), 0 0 0 4px #aa8d4f72, 0 8px 20px #0007;
 }
 
 .stage.phone.table-stage .board.drop-target {
@@ -542,6 +582,10 @@
 .stage.phone.table-stage .activity-toggle {
   font-size: 16px;
   padding: 6px 10px;
+}
+
+.stage.phone.table-stage .last-played-button {
+  font-size: 13px;
 }
 
 .stage.phone.table-stage .game-log {
@@ -626,7 +670,6 @@
     transition: none;
   }
 
-  .rail-preview,
   .plate.targetable,
   .location-area.selectable,
   .rotate-icon {

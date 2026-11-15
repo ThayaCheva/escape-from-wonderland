@@ -61,6 +61,11 @@ export interface PileEntry {
   modifier: -1 | 0 | 1;
 }
 
+export interface PlayedCard {
+  card: Card;
+  seat: Seat;
+}
+
 export interface ActiveEntry {
   card: SpecialCard;
   seat: Seat;
@@ -115,6 +120,8 @@ export interface GameState {
   active: ActiveEntry[];
   current: Seat;
   lastNumberSeat: Seat | null;
+  /** The most recent public play, including lasting cards. Older saves can omit it. */
+  lastPlayed?: PlayedCard;
   round: number;
   cheshireUsedThisRound: boolean;
   turnActionTaken: boolean;

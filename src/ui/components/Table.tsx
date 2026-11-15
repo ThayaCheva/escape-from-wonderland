@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Card as CardT, Edge, GameAction, GameState, LocationId } from '../../engine/types';
+import type { Card as CardT, Edge, GameAction, GameState, LocationId, PlayedCard } from '../../engine/types';
 import { actingSeat } from '../../engine/step';
 import { checkPlay } from '../../engine/rules';
-import { CARD_DEFS, isNumber } from '../../engine/cards';
-import { changedSince, dropAction, lastPlayLine, locationLine, nextSeatToAct, passNeedsConfirm, shouldAutoPass } from '../info';
+import { cardLabel, CARD_DEFS, isNumber } from '../../engine/cards';
+import { changedSince, dropAction, lastPlayedCard, lastPlayLine, locationLine, nextSeatToAct, passNeedsConfirm, shouldAutoPass } from '../info';
 import { Card } from './Card';
 import { Animations } from './Animations';
 import { detectAnimations, type Anim } from '../animationEvents';
@@ -13,7 +13,7 @@ import { useScreen } from '../screen';
 import { PHONE_PANEL } from '../geometry';
 import { anchorsFor } from '../anchors';
 import { LOCATIONS } from '../../engine/board';
-import { TABLE_IMAGE } from '../assets';
+import { BACKGROUND_IMAGE } from '../assets';
 import { EDGE_ROTATION, edgeFor } from '../layout';
 import { confirm, faceUpHandSeat, needsHandoff, type UiGate } from '../visibility';
 import { Board } from './Board';
@@ -82,6 +82,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   const [gate, setGate] = useState<UiGate>({ confirmedSeat: null, peeked: false });
   const [selected, setSelected] = useState<string[]>([]);
   const [preview, setPreview] = useState<{ cardId: string; seat: number; inspectOnly: boolean } | null>(null);
+  const [playedReview, setPlayedReview] = useState<{ play: PlayedCard; trigger: HTMLButtonElement } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
   const rulesButton = useRef<HTMLButtonElement>(null);
@@ -143,8 +144,8 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
     setPreview((current) => current?.inspectOnly ? current : null);
   }, [situation, canPlayFromHand]);
   useEffect(() => {
-    if (!canPlayFromHand || showRules) endDrag.current?.();
-  }, [canPlayFromHand, showRules]);
+    if (!canPlayFromHand || showRules || playedReview) endDrag.current?.();
+  }, [canPlayFromHand, showRules, playedReview]);
 
   useEffect(() => {
     if (notice) setToast(notice.message);
@@ -338,21 +339,46 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
     return null;
   };
 
+  const latestPlay = lastPlayedCard(state);
+  const activity = (
+    <GameLog
+      lines={state.log}
+      lastPlayed={latestPlay ? {
+        label: cardLabel(latestPlay.card),
+        open: (trigger) => setPlayedReview({ play: latestPlay, trigger }),
+      } : undefined}
+    />
+  );
+
+  let modal: React.ReactNode = null;
+  if (showRules) {
+    modal = <RulesPanel onClose={() => setShowRules(false)} returnFocus={rulesButton} />;
+  } else if (playedReview) {
+    modal = (
+      <CardPreview
+        card={playedReview.play.card}
+        rotation={rotation}
+        playedBy={state.players[playedReview.play.seat].name}
+        returnFocus={playedReview.trigger}
+        onCancel={() => setPlayedReview(null)}
+      />
+    );
+  } else if (handReveal) {
+    modal = (
+      <RevealedHand
+        key={`${handReveal.seat}:${handReveal.target}`}
+        player={state.players[handReveal.target]}
+        rotation={rotation}
+        onDone={() => send({ type: 'ack', seat: handReveal.seat })}
+      />
+    );
+  }
+
   return (
     <Stage
-      background={TABLE_IMAGE}
+      background={BACKGROUND_IMAGE}
       className={`table-stage${online ? ' table-online' : ' table-hotseat'}`}
-      modal={
-        showRules ? <RulesPanel onClose={() => setShowRules(false)} returnFocus={rulesButton} />
-          : handReveal ? (
-            <RevealedHand
-              key={`${handReveal.seat}:${handReveal.target}`}
-              player={state.players[handReveal.target]}
-              rotation={rotation}
-              onDone={() => send({ type: 'ack', seat: handReveal.seat })}
-            />
-          ) : null
-      }
+      modal={modal}
     >
       <Board
         state={state}
@@ -412,7 +438,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
       {!phone ? (
         <aside className="corner corner-tl" aria-label="Table activity">
           <h1 className="table-wordmark"><span>Escape from</span> Wonderland</h1>
-          <GameLog lines={state.log} />
+          {activity}
         </aside>
       ) : null}
       <aside className="corner corner-tr" aria-label="Table controls">
@@ -446,7 +472,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
           <div className="turn-heading">{turnTitle}</div>
           {turnDetail ? <div className="turn-detail">{turnDetail}</div> : null}
         </section>
-        {phone ? <GameLog lines={state.log} /> : null}
+        {phone ? activity : null}
       </aside>
 
       {canAct && prompt && prompt.type !== 'view-hand' ? (
@@ -483,10 +509,10 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
         })()
       ) : null}
 
-      {hovered && !phone && !previewCard && !showRules ? (
+      {hovered && !phone && !previewCard && !modal ? (
         online ? (
           <div className="hover-preview rail-preview" aria-hidden>
-            <Card card={hovered} faceUp size="preview-sm" />
+            <Card card={hovered} faceUp size="preview" style={{ width: '100%', height: 'auto', aspectRatio: '5 / 7' }} />
           </div>
         ) : (
           <div className="hover-preview" style={{ left: 800, top: 450, transform: `translate(-50%, -50%) rotate(${rotation}deg)` }}>

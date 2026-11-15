@@ -1,6 +1,6 @@
 import { expect, test, type Page, type WebSocketRoute } from '@playwright/test';
 import { step } from '../src/engine/step';
-import { makeState, num, pileOf } from '../src/engine/testkit';
+import { makeState, num, pileOf, sp } from '../src/engine/testkit';
 import type { GameState } from '../src/engine/types';
 import { viewFor } from '../src/engine/view';
 import type { ClientMsg, ServerMsg } from '../src/net/protocol';
@@ -105,4 +105,39 @@ test('activity stays on the same visible entry as the capped log advances', asyn
   room.view(next);
   await expect(log.getByText('Lily plays Red 8.')).toBeAttached();
   await expect.poll(topEntry).toBe(reading);
+});
+
+test('players can inspect the last public play and read its rules while the activity log is collapsed', async ({ page }) => {
+  const tweedledee = sp('tweedledee');
+  const state = makeState({
+    current: 1,
+    players: [
+      { name: 'Alice', hand: [num('W', 5)] },
+      { name: 'Lily', position: 'white-queen', hand: [tweedledee, num('W', 6)] },
+      { name: 'Edith', hand: [num('R', 9), num('W', 2)] },
+    ],
+  });
+  const room = await onlineTable(page, state);
+  const inspect = page.getByRole('button', { name: 'Last played' });
+  await expect(inspect).toBeDisabled();
+  const played = step(state, { type: 'play', seat: 1, cardId: tweedledee.id });
+  room.view(played);
+  await expect(page.getByTestId('effects')).toContainText('Tweedledee is waiting');
+  await page.getByRole('button', { name: 'Activity' }).click();
+  await expect(page.getByTestId('log')).toBeHidden();
+  await inspect.click();
+  const dialog = page.getByRole('dialog', { name: 'Tweedledee' });
+  await expect(dialog).toContainText('Played by Lily');
+  await expect(dialog).toContainText('When both cards are played in the same round');
+  await expect(dialog).toContainText('If you played both, you may discard up to 4 cards.');
+  await expect(dialog.getByRole('img', { name: 'Tweedledee' })).toBeVisible();
+
+  const next = step(played, { type: 'play', seat: 2, cardId: played.players[2].hand[0].id });
+  room.view(next);
+  await expect(page.locator('.pile-label')).toContainText('9');
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(inspect).toBeFocused();
+  await inspect.click();
+  await expect(page.getByRole('dialog', { name: 'Red 9' })).toContainText('Played by Edith');
 });

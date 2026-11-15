@@ -11,7 +11,6 @@ export const CARD_BACK = `${base}cards/back.jpg`;
 export const BOARD_IMAGE = `${base}board.jpg`;
 export const TITLE_IMAGE = `${base}title.jpg`;
 export const BACKGROUND_IMAGE = `${base}background.jpg`;
-export const TABLE_IMAGE = `${base}table-felt.webp`;
 
 export function aliceImage(color: AliceColor): string {
   return `${base}tokens/alice-${color}.png`;

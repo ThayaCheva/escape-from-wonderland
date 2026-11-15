@@ -24,6 +24,7 @@ export function playCard(s: GameState, seat: Seat, cardId: string, opts: { free?
   if (def.lasting) s.active.push({ card, seat });
   else s.discard.push(card);
   if (s.effectCauser === null) s.effectCauser = seat;
+  s.lastPlayed = { card, seat };
   log(s, `${nameOf(s, seat)} plays ${cardLabel(card)}.`);
   resolveSpecial(s, seat, card);
 }

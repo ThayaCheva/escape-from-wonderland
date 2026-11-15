@@ -77,6 +77,7 @@ export function placeNumber(s: GameState, seat: Seat, card: NumberCard): void {
   const effective = card.value + modifier;
   s.pile.push({ card, seat, modifier, effective });
   s.lastNumberSeat = seat;
+  s.lastPlayed = { card, seat };
   const suffix =
     modifier === 0 ? '' : ` (${POSITION_TITLES[s.players[seat].position]}: counts as ${effective})`;
   log(s, `${nameOf(s, seat)} plays ${cardLabel(card)}${suffix}.`);

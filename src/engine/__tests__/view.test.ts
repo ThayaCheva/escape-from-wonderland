@@ -3,7 +3,7 @@ import { viewFor } from '../view';
 import { newGame } from '../setup';
 import { step } from '../step';
 import { isNumber } from '../cards';
-import { makeState, num } from '../testkit';
+import { makeState, num, sp } from '../testkit';
 import type { GameState } from '../types';
 
 /** A 4-player game just past setup. */
@@ -17,6 +17,20 @@ function midGame(): GameState {
 }
 
 describe('viewFor', () => {
+  it('shares the last played card even after its log is gone and keeps the rest of the hand hidden', () => {
+    const played = sp('tweedledee');
+    const secret = num('W', 5);
+    const initial = makeState({
+      players: [{ position: 'white-queen', hand: [played, secret] }, { hand: [num('R', 7)] }],
+    });
+    const current = step(initial, { type: 'play', seat: 0, cardId: played.id });
+    current.log = [];
+    expect(current.discard).not.toContainEqual(played);
+    const view = viewFor(current, 1);
+    expect(view.lastPlayed).toEqual({ seat: 0, card: played });
+    expect(JSON.stringify(view)).not.toContain(secret.id);
+  });
+
   it('hides every other hand card and every deck card, but keeps your own hand', () => {
     const s = midGame();
     for (let v = 0; v < 4; v++) {

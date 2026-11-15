@@ -387,7 +387,9 @@ body,
   position: absolute;
   z-index: 35;
   pointer-events: none;
-  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.7));
+}
+.hover-preview .card {
+  box-shadow: 0 10px 30px #000a;
 }
 .btn.confirm {
   background: var(--red);

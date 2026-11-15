@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeEffectLines, dropAction, hasLegalPlay, lastPlayLine, locationLine, nextSeatToAct } from '../info';
+import { activeEffectLines, dropAction, hasLegalPlay, lastPlayLine, lastPlayedCard, locationLine, nextSeatToAct } from '../info';
 import { makeState, num, pileOf, sp } from '../../engine/testkit';
 
 describe('hasLegalPlay', () => {
@@ -54,6 +54,20 @@ describe('lastPlayLine', () => {
       "Sam played Red 12 (Red Queen's Castle: counts as 13).",
     );
     expect(lastPlayLine(['Round 2 begins.'])).toBeNull();
+  });
+});
+
+describe('lastPlayedCard', () => {
+  it('recovers a played Event from an older save without using the discard pile', () => {
+    const state = makeState({ players: [{ name: 'Ann' }, { name: 'Sam plays chess' }] });
+    state.log = ['Sam plays chess plays Tweedledee.', 'Tweedledee waits for a partner.', 'Ann discards White 5.'];
+    expect(lastPlayedCard(state)).toMatchObject({ seat: 1, card: { kind: 'event', name: 'tweedledee' } });
+  });
+
+  it('recognizes modified number plays in older saves', () => {
+    const state = makeState({ players: [{ name: 'Ann' }, { name: 'Sam' }] });
+    state.log = ["Sam plays Red 13 (Red Queen's Castle: counts as 14)."];
+    expect(lastPlayedCard(state)).toMatchObject({ seat: 1, card: { kind: 'number', color: 'red', value: 13 } });
   });
 });
 

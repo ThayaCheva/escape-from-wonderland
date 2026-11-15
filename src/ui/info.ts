@@ -1,8 +1,8 @@
 // Pure helpers that turn game state into things shown on screen.
-import { isNumber } from '../engine/cards';
+import { CARD_DEFS, isNumber } from '../engine/cards';
 import { LOCATION_NAMES } from '../engine/board';
 import { checkPlay, locationEffectsOn, nextSeat } from '../engine/rules';
-import type { GameAction, GameState, LocationId, Seat } from '../engine/types';
+import type { GameAction, GameState, LocationId, PlayedCard, Seat } from '../engine/types';
 
 export function hasLegalPlay(state: GameState, seat: Seat): boolean {
   return state.players[seat].hand.some((c) => checkPlay(state, seat, c.id).ok);
@@ -60,6 +60,30 @@ export function locationLine(state: GameState, seat: Seat, withEffect: boolean):
 export function lastPlayLine(log: string[]): string | null {
   for (let i = log.length - 1; i >= 0; i--) {
     if (log[i].includes(' plays ')) return log[i].replace(' plays ', ' played ');
+  }
+  return null;
+}
+
+const CARD_BY_TITLE = new Map(Object.values(CARD_DEFS).map((card) => [card.title, card] as const));
+
+export function lastPlayedCard(state: GameState): PlayedCard | null {
+  if (state.lastPlayed) return state.lastPlayed;
+  // Saves made before play tracking can recover the card from the public log.
+  for (let i = state.log.length - 1; i >= 0; i--) {
+    const play = /^(.+) plays (.+)\.$/s.exec(state.log[i]);
+    if (!play) continue;
+    const seat = state.players.findIndex((p) => p.name === play[1]);
+    if (seat < 0) continue;
+    const label = play[2];
+    const def = CARD_BY_TITLE.get(label);
+    if (def) return { seat, card: { id: 'last-played', kind: def.kind, name: def.name } };
+    const number = /^(Red|White) (1[0-3]|[1-9])(?: \(.+: counts as \d+\))?$/.exec(label);
+    if (number) {
+      return {
+        seat,
+        card: { id: 'last-played', kind: 'number', color: number[1] === 'Red' ? 'red' : 'white', value: Number(number[2]) },
+      };
+    }
   }
   return null;
 }

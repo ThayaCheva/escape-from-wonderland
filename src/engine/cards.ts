@@ -48,11 +48,11 @@ export const CARD_DEFS: Record<CardName, CardDef> = {
   }),
   tweedledee: def({
     name: 'tweedledee', kind: 'event', title: 'Tweedledee', location: 'white-queen', lasting: true,
-    text: 'Must be played with a TWEEDLEDUM card. Once both cards are played, both USERS may DISCARD 2 additional cards. Both TWEEDLEDEE and TWEEDLEDUM must be played in the same round.',
+    text: 'Waits for Tweedledum. When both cards are played in the same round, each player who played one may discard up to 2 cards. If you played both, you may discard up to 4 cards.',
   }),
   tweedledum: def({
     name: 'tweedledum', kind: 'event', title: 'Tweedledum', location: 'white-queen', lasting: true,
-    text: 'Must be played with a TWEEDLEDEE card. Once both cards are played, both USERS may DISCARD 2 additional cards. Both TWEEDLEDEE and TWEEDLEDUM must be played in the same round.',
+    text: 'Waits for Tweedledee. When both cards are played in the same round, each player who played one may discard up to 2 cards. If you played both, you may discard up to 4 cards.',
   }),
   jabberwocky: def({
     name: 'jabberwocky', kind: 'event', title: 'Jabberwocky', location: 'chess', lasting: true,

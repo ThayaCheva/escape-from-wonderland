@@ -1,7 +1,10 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { newLogLines } from '../animationEvents';
 
-export function GameLog({ lines }: { lines: string[] }) {
+export function GameLog({ lines, lastPlayed }: {
+  lines: string[];
+  lastPlayed?: { label: string; open: (trigger: HTMLButtonElement) => void };
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(true);
   // Keep row keys tied to the whole game as old entries fall out of the server's log.
@@ -25,20 +28,32 @@ export function GameLog({ lines }: { lines: string[] }) {
   }, [open, lines]);
   return (
     <section className="activity">
-      <button
-        type="button"
-        className="activity-toggle"
-        aria-expanded={open}
-        aria-controls="table-activity"
-        onClick={() => {
-          followLatest.current = true;
-          reading.current = null;
-          setOpen(!open);
-        }}
-      >
-        <span>Activity</span>
-        <span className="activity-chevron" aria-hidden />
-      </button>
+      <div className="activity-header">
+        <button
+          type="button"
+          className="activity-toggle"
+          aria-expanded={open}
+          aria-controls="table-activity"
+          onClick={() => {
+            followLatest.current = true;
+            reading.current = null;
+            setOpen(!open);
+          }}
+        >
+          <span>Activity</span>
+          <span className="activity-chevron" aria-hidden />
+        </button>
+        <button
+          type="button"
+          className="last-played-button"
+          aria-haspopup="dialog"
+          disabled={!lastPlayed}
+          title={lastPlayed?.label ?? 'No cards have been played yet'}
+          onClick={(event) => lastPlayed?.open(event.currentTarget)}
+        >
+          Last played
+        </button>
+      </div>
       <div
         className="game-log"
         id="table-activity"
