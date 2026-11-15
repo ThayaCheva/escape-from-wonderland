@@ -9,6 +9,9 @@ import { Card } from './Card';
 import { Animations } from './Animations';
 import { detectAnimations, type Anim } from '../animationEvents';
 import { setSoundOn, soundOn } from '../sound';
+import { useScreen } from '../screen';
+import { PHONE_PANEL } from '../geometry';
+import { anchorsFor } from '../anchors';
 import { LOCATIONS } from '../../engine/board';
 import { BACKGROUND_IMAGE } from '../assets';
 import { EDGE_ROTATION, edgeFor } from '../layout';
@@ -109,6 +112,12 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
   const prompt = state.prompts[0];
   const acting = actingSeat(state);
   const online = viewerSeat !== undefined;
+  const kind = useScreen();
+  const phone = kind === 'phone';
+  const anchors = anchorsFor(kind);
+  /** Online opponents in turn order starting after you (phone: their place in the stack). */
+  const opponentIndex = (seat: number) =>
+    online ? (seat - viewerSeat - 1 + state.players.length) % state.players.length : seat;
   const edgeOf = (seat: number): Edge =>
     online ? edgeFor(seat, viewerSeat, state.players.length) : state.players[seat].edge;
   const actingEdge = edgeOf(acting);
@@ -326,6 +335,8 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
             state={state}
             seat={seat}
             edge={edgeOf(seat)}
+            index={opponentIndex(seat)}
+            count={state.players.length - 1}
             glowing={seat === acting}
             connected={connected ? connected[seat] !== false : true}
             next={state.phase === 'playing' && seat === nextSeatToAct(state) && seat !== state.current}
@@ -351,7 +362,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
           onCardClick={seat === acting && faceSeat === acting ? onOwnCardClick : undefined}
           onCardPointerDown={seat === acting && faceSeat === acting ? onCardPointerDown : undefined}
           onCardHover={faceSeat === seat ? setHoverCard : undefined}
-          cardSize={online && seat === viewerSeat ? 'hand-lg' : 'hand'}
+          cardSize={online && seat === viewerSeat ? (phone ? 'hand-phone' : 'hand-lg') : 'hand'}
           where={locationLine(state, seat, seat === (online ? viewerSeat : acting))}
           next={state.phase === 'playing' && seat === nextSeatToAct(state) && seat !== state.current}
           controls={controls(seat)}
@@ -387,7 +398,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
       {canAct && prompt ? (
         (() => {
           const compact = BOARD_PROMPTS.has(prompt.type);
-          const pos = (compact ? PANEL_POS_EDGE : PANEL_POS)[actingEdge];
+          const pos = phone ? PHONE_PANEL : (compact ? PANEL_POS_EDGE : PANEL_POS)[actingEdge];
           return (
             <div className="prompt-anchor" style={{ left: pos.x, top: pos.y }}>
               <PromptPanel state={state} prompt={prompt} rotation={rotation} selectedIds={selected} send={send} compact={compact} />
@@ -397,7 +408,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
       ) : null}
 
       {myTurnNoPrompt && !gate.peeked && !autoPass ? (
-        <div className="prompt-anchor" style={{ left: PANEL_POS[actingEdge].x, top: PANEL_POS[actingEdge].y }}>
+        <div className="prompt-anchor" style={{ left: (phone ? PHONE_PANEL : PANEL_POS[actingEdge]).x, top: (phone ? PHONE_PANEL : PANEL_POS[actingEdge]).y }}>
           <div className="prompt-panel hint" style={{ transform: `translate(-50%, -50%) rotate(${rotation}deg)` }}>
             Click <b>Peek</b> to look at your cards.
           </div>
@@ -434,7 +445,7 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
               : `Waiting for ${state.players[acting].name}…`}
         </div>
       ) : null}
-      {hovered ? (
+      {hovered && !phone ? (
         online ? (
           <div className="hover-preview" style={{ left: 380, top: 268 }}>
             <Card card={hovered} faceUp size="preview" />
@@ -454,7 +465,16 @@ export function Table({ state, dispatch, onQuit, viewerSeat, connected, notice, 
             document.body,
           )
         : null}
-      <Animations batch={animBatch} state={state} edgeOf={edgeOf} online={online} viewerSeat={viewerSeat} />
+      <Animations
+        batch={animBatch}
+        state={state}
+        edgeOf={edgeOf}
+        online={online}
+        viewerSeat={viewerSeat}
+        anchors={anchors}
+        opponentIndex={opponentIndex}
+        phone={phone}
+      />
       {offline ? (
         <div className="offline-bar" data-testid="offline">
           Reconnecting…

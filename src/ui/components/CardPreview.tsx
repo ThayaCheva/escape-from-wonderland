@@ -2,6 +2,7 @@ import type { Card as CardT } from '../../engine/types';
 import { cardLabel, CARD_DEFS, isNumber } from '../../engine/cards';
 import { LOCATION_NAMES } from '../../engine/board';
 import { Card } from './Card';
+import { useScreen } from '../screen';
 
 interface Props {
   card: CardT;
@@ -17,7 +18,7 @@ export function CardPreview({ card, rotation, actionLabel, reason, onAction, onC
   return (
     <div className="overlay" onClick={onCancel}>
       <div className="preview" style={{ transform: `translate(-50%, -50%) rotate(${rotation}deg)` }} onClick={(e) => e.stopPropagation()}>
-        <Card card={card} faceUp size="preview" />
+        <Card card={card} faceUp size={useScreen() === 'phone' ? 'preview-sm' : 'preview'} />
         <div className="preview-side">
           <h2>{cardLabel(card)}</h2>
           {def ? (

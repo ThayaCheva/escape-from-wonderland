@@ -4,7 +4,8 @@ import { expect, type Locator, type Page } from '@playwright/test';
 export async function clickCard(page: Page, card: Locator) {
   const cls = (await page.locator('.player-edge.glowing').first().getAttribute('class')) ?? '';
   const edge = /edge-(\w+)/.exec(cls)?.[1] ?? 'bottom';
-  const b = (await card.boundingBox())!;
+  const b = await card.boundingBox();
+  if (!b) return; // the card moved or left the hand (the turn changed)
   const pos = {
     bottom: { x: 5, y: b.height / 2 },
     top: { x: b.width - 5, y: b.height / 2 },
@@ -27,6 +28,16 @@ const rnd = (n: number) => Math.floor(Math.random() * n);
  * Returns false when there's nothing for this screen to do (online: someone else's turn).
  */
 export async function randomMove(page: Page): Promise<boolean> {
+  try {
+    return await randomMoveOnce(page);
+  } catch (e) {
+    // the screen changed under the bot (the turn moved on, a card left the hand): just try again next time
+    if (e instanceof Error && /Timeout|timeout|detached|not attached/.test(e.message)) return true;
+    throw e;
+  }
+}
+
+async function randomMoveOnce(page: Page): Promise<boolean> {
   if (await page.getByTestId('handoff').count()) {
     await expectNoHandLeak(page);
     await page.getByTestId('handoff').click();
@@ -73,13 +84,14 @@ export async function randomMove(page: Page): Promise<boolean> {
   const n = await playable.count();
   if (n && Math.random() < 0.85) {
     await clickCard(page, playable.nth(rnd(n)));
+    // the turn can move on underneath us (automatic pass, another player): don't wait forever
     const play = page.getByRole('button', { name: 'Play' });
-    if (await play.isEnabled()) {
-      await play.click();
+    if (await play.isEnabled({ timeout: 2000 }).catch(() => false)) {
+      await play.click({ timeout: 2000 }).catch(() => {});
       return true;
     }
-    await page.getByRole('button', { name: 'Back' }).click();
+    await page.getByRole('button', { name: 'Back' }).click({ timeout: 2000 }).catch(() => {});
   }
-  await pass.click();
+  await pass.click({ timeout: 2000 }).catch(() => {});
   return true;
 }

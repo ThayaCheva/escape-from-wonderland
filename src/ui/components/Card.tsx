@@ -2,13 +2,15 @@ import type { Card as CardT } from '../../engine/types';
 import { cardLabel } from '../../engine/cards';
 import { CARD_BACK, MODIFIER_IMAGE, cardImage } from '../assets';
 
-export type CardSize = 'mini' | 'hand' | 'hand-lg' | 'pile' | 'preview';
+export type CardSize = 'mini' | 'hand' | 'hand-lg' | 'hand-phone' | 'pile' | 'preview' | 'preview-sm';
 export const CARD_SIZES: Record<CardSize, { w: number; h: number }> = {
   mini: { w: 50, h: 70 },
   hand: { w: 75, h: 105 },
   'hand-lg': { w: 100, h: 140 },
+  'hand-phone': { w: 66, h: 92 },
   pile: { w: 70, h: 98 },
   preview: { w: 300, h: 420 },
+  'preview-sm': { w: 200, h: 280 },
 };
 
 interface Props {

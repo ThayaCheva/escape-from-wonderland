@@ -4,6 +4,8 @@ import { hasCheshire, isImmune } from '../../engine/rules';
 import { EDGE_ROTATION } from '../layout';
 import { aliceImage } from '../assets';
 import { Hand } from './Hand';
+import { edgeBox } from '../geometry';
+import { useScreen } from '../screen';
 
 /** Where each edge's strip sits on the 1600x900 stage, and its unrotated size. */
 export const EDGE_BOXES: Record<Edge, { cx: number; cy: number; length: number; depth: number }> = {
@@ -47,7 +49,7 @@ interface Props {
   onCardClick?: (card: CardT, index: number) => void;
   onCardPointerDown?: (card: CardT, e: React.PointerEvent) => void;
   onCardHover?: (card: CardT | null) => void;
-  cardSize?: 'hand' | 'hand-lg';
+  cardSize?: 'hand' | 'hand-lg' | 'hand-phone';
   /** Extra line under the name (location, and for you its effect). */
   where?: string;
   /** Plays right after the current player. */
@@ -58,7 +60,7 @@ interface Props {
 export function PlayerEdge({ state, seat, edge: edgeOverride, upright, viewer, connected = true, faceUp, glowing, targetable, onPlateClick, selectedIds, isDimmed, onCardClick, onCardPointerDown, onCardHover, cardSize, where, next, controls }: Props) {
   const player = state.players[seat];
   const edge = edgeOverride ?? player.edge;
-  const box = EDGE_BOXES[edge];
+  const box = edgeBox(useScreen(), edge);
   const rotation = EDGE_ROTATION[edge];
   const classes = ['player-edge', `edge-${edge}`];
   if (glowing) classes.push('glowing');

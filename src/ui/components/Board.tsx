@@ -8,7 +8,8 @@ import { activeEffectLines } from '../info';
 import { locationInfo, pickedSeats } from '../animationEvents';
 import { Card, CARD_SIZES } from './Card';
 
-export const BOARD_BOX = { left: 358, top: 150, width: 884, height: 600 };
+import { boardBox } from '../geometry';
+import { useScreen } from '../screen';
 
 interface Props {
   state: GameState;
@@ -35,6 +36,8 @@ export function Board(props: Props) {
   const [hovered, setHovered] = useState<LocationId | null>(null);
   const [tip, setTip] = useState<{ loc: LocationId; x: number; y: number } | null>(null);
   const [showDiscard, setShowDiscard] = useState(false);
+  const kind = useScreen();
+  const phone = kind === 'phone';
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,10 +74,11 @@ export function Board(props: Props) {
     <div
       ref={ref}
       className={`board${props.dropTarget ? ' drop-target' : ''}${hovered ? ' pointing' : ''}`}
-      style={{ ...BOARD_BOX, backgroundImage: `url(${BOARD_IMAGE})` }}
+      style={{ ...boardBox(kind), backgroundImage: `url(${BOARD_IMAGE})` }}
       data-testid="board"
       onMouseMove={(e) => {
         setHovered(pointToLocation(e));
+        if (phone) return;
         const p = pct(e);
         const loc = p ? locationAt(masks, p.x, p.y) : null;
         setTip(loc && p ? { loc, x: p.x, y: p.y } : null);
@@ -85,7 +89,15 @@ export function Board(props: Props) {
       }}
       onClick={(e) => {
         const loc = pointToLocation(e);
-        if (loc) onLocationClick?.(loc);
+        if (loc) {
+          onLocationClick?.(loc);
+          return;
+        }
+        if (phone) {
+          const p = pct(e);
+          const at = p ? locationAt(masks, p.x, p.y) : null;
+          setTip(at && p && tip?.loc !== at ? { loc: at, x: p.x, y: p.y } : null);
+        }
       }}
     >
       {LOCATIONS.filter((l) => glowing.has(l)).map((loc) => (
@@ -122,8 +134,13 @@ export function Board(props: Props) {
         className="discard-box"
         style={boxStyle(DISCARD_BOX)}
         data-testid="discard"
-        onMouseEnter={() => setShowDiscard(true)}
-        onMouseLeave={() => setShowDiscard(false)}
+        onMouseEnter={() => !phone && setShowDiscard(true)}
+        onMouseLeave={() => !phone && setShowDiscard(false)}
+        onClick={(e) => {
+          if (!phone) return;
+          e.stopPropagation();
+          setShowDiscard((v) => !v);
+        }}
       >
         {discardTop ? <Card card={discardTop} faceUp size="pile" /> : null}
         <span className="box-count">{state.discard.length}</span>
@@ -190,7 +207,7 @@ export function Board(props: Props) {
 
       {showDiscard && discardTop && !props.dragging ? (
         <div className="discard-preview" data-testid="discard-preview">
-          <Card card={discardTop} faceUp size="preview" />
+          <Card card={discardTop} faceUp size={phone ? 'preview-sm' : 'preview'} />
           <div className="tip-label">Top of the discard pile</div>
         </div>
       ) : null}

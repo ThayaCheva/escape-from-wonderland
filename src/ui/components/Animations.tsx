@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { CardName, Edge, GameState, Seat } from '../../engine/types';
 import { CARD_DEFS } from '../../engine/cards';
 import { isStale, type Anim } from '../animationEvents';
-import { BOARD_CENTRE, DECK_POINT, DISCARD_POINT, EFFECTS_POINT, PILE_POINT_STAGE, seatAnchors, tokenPoint, type Point } from '../anchors';
+import type { Anchors, Point } from '../anchors';
 import { aliceImage } from '../assets';
 import { Card } from './Card';
 
@@ -17,6 +17,10 @@ interface Props {
   state: GameState;
   /** Where each seat sits on this screen. */
   edgeOf: (seat: Seat) => Edge;
+  anchors: Anchors;
+  /** Phone: an opponent's place in the stack. */
+  opponentIndex: (seat: Seat) => number;
+  phone: boolean;
   online: boolean;
   viewerSeat?: Seat;
 }
@@ -65,7 +69,7 @@ function Sparkles({ at, n = 18, spread = 170, delay = 0 }: { at: Point; n?: numb
   );
 }
 
-export function Animations({ batch, state, edgeOf, online, viewerSeat }: Props) {
+export function Animations({ batch, state, edgeOf, online, viewerSeat, anchors, opponentIndex, phone }: Props) {
   const [items, setItems] = useState<Item[]>([]);
   // specials and banners each play one after another; this is when each channel is free again
   const free = useRef({ special: 0, banner: 0 });
@@ -75,7 +79,13 @@ export function Animations({ batch, state, edgeOf, online, viewerSeat }: Props) 
   useEffect(() => {
     if (!batch) return;
     const now = Date.now();
-    const anchor = (seat: Seat) => seatAnchors(edgeOf(seat), online && seat !== viewerSeat);
+    const others = state.players.length - (online ? 1 : 0);
+    const anchor = (seat: Seat) => anchors.seat(edgeOf(seat), online && seat !== viewerSeat, opponentIndex(seat), others);
+    const BOARD_CENTRE = anchors.centre;
+    const DECK_POINT = anchors.deck;
+    const DISCARD_POINT = anchors.discard;
+    const PILE_POINT_STAGE = anchors.pile;
+    const EFFECTS_POINT = anchors.effects;
     const name = (seat: Seat) => state.players[seat].name;
     const add = (node: ReactNode, startIn: number, lasts: number) => {
       const id = nextId++;
@@ -100,7 +110,7 @@ export function Animations({ batch, state, edgeOf, online, viewerSeat }: Props) 
           const from = anchor(a.seat).hand;
           add(
             <div className="anim-special" style={{ left: BOARD_CENTRE.x, top: BOARD_CENTRE.y, '--fx': `${from.x - BOARD_CENTRE.x}px`, '--fy': `${from.y - BOARD_CENTRE.y}px` } as CSSProperties}>
-              <Card card={{ id: 'anim', kind: def.kind, name: a.name }} faceUp size="preview" />
+              <Card card={{ id: 'anim', kind: def.kind, name: a.name }} faceUp size={phone ? 'preview-sm' : 'preview'} />
               <div className="anim-caption">
                 {name(a.seat)} plays {def.title}
               </div>
@@ -195,7 +205,7 @@ export function Animations({ batch, state, edgeOf, online, viewerSeat }: Props) 
           break;
         }
         case 'win': {
-          const from = tokenPoint(state.players[a.seat].position, 0);
+          const from = anchors.token(state.players[a.seat].position, 0);
           add(
             <>
               <img className="anim-escape" src={aliceImage(state.players[a.seat].alice)} alt="" style={{ left: from.x, top: from.y }} />

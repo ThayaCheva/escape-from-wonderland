@@ -18,6 +18,7 @@ const TYPES: Record<string, string> = {
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
 };
 
 async function serveStatic(distDir: string, req: IncomingMessage, res: ServerResponse): Promise<void> {

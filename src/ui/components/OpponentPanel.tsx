@@ -2,6 +2,8 @@ import type { Edge, GameState, Seat } from '../../engine/types';
 import { aliceImage } from '../assets';
 import { Card } from './Card';
 import { playerStatus } from './PlayerEdge';
+import { opponentCentre } from '../geometry';
+import { useScreen } from '../screen';
 
 /** Where each opponent panel sits on the 1600x900 stage (centre). */
 const PANEL_CENTRE: Record<Exclude<Edge, 'bottom'>, { x: number; y: number }> = {
@@ -10,6 +12,7 @@ const PANEL_CENTRE: Record<Exclude<Edge, 'bottom'>, { x: number; y: number }> = 
   right: { x: 1440, y: 450 },
 };
 const MAX_BACKS = 8;
+const MAX_BACKS_PHONE = 5;
 
 interface Props {
   state: GameState;
@@ -21,13 +24,17 @@ interface Props {
   where: string;
   targetable: boolean;
   onPick: () => void;
+  /** Phone: position in the stack of opponents. */
+  index?: number;
+  count?: number;
 }
 
 /** Online: one upright panel per opponent with their portrait, cards (face down), location and status. */
-export function OpponentPanel({ state, seat, edge, glowing, connected, next, where, targetable, onPick }: Props) {
+export function OpponentPanel({ state, seat, edge, glowing, connected, next, where, targetable, onPick, index = 0, count = 1 }: Props) {
   const player = state.players[seat];
-  const centre = PANEL_CENTRE[edge === 'bottom' ? 'top' : edge];
-  const shown = Math.min(player.hand.length, MAX_BACKS);
+  const kind = useScreen();
+  const centre = opponentCentre(kind, edge, index, count);
+  const shown = Math.min(player.hand.length, kind === 'phone' ? MAX_BACKS_PHONE : MAX_BACKS);
   const extra = player.hand.length - shown;
   const chips = [...playerStatus(state, seat, connected), ...(next ? ['Next'] : [])];
   return (

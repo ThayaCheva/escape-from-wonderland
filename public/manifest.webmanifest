@@ -1,0 +1,10 @@
+{
+  "name": "Escape from Wonderland",
+  "short_name": "Wonderland",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1e2028",
+  "theme_color": "#2a2d37",
+  "icons": [{ "src": "assets/tokens/alice-gold.png", "sizes": "256x256", "type": "image/png" }]
+}

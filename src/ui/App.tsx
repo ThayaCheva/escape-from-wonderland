@@ -11,6 +11,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { OnlineEntryScreen } from './components/OnlineEntryScreen';
 import { LobbyScreen } from './components/LobbyScreen';
 import { OnlineStatusScreen } from './components/OnlineStatusScreen';
+import { ScreenContext, useScreenSize, type ScreenKind } from './screen';
 
 type Screen = 'title' | 'new' | 'create' | 'join';
 
@@ -35,6 +36,25 @@ function useEndScreen(state: GameState | null): boolean {
 }
 
 export function App() {
+  const screenSize = useScreenSize();
+  const content = <Screens phone={screenSize.kind === 'phone'} />;
+  return (
+    <>
+      {content}
+      {screenSize.portrait ? (
+        <div className="rotate-phone" data-testid="rotate-phone">
+          <div className="rotate-icon">⟲</div>
+          <div>Turn your phone sideways to play</div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function Screens({ phone }: { phone: boolean }) {
+  // online screens follow the device; one-screen games are built for a shared monitor
+  const deviceKind: ScreenKind = phone ? 'phone' : 'desktop';
+  const withKind = (kind: ScreenKind, node: React.ReactNode) => <ScreenContext.Provider value={kind}>{node}</ScreenContext.Provider>;
   const game = useGame();
   const online = useOnlineGame();
   const [screen, setScreen] = useState<Screen>(() => (roomFromUrl() ? 'join' : 'title'));
@@ -50,31 +70,33 @@ export function App() {
   // ---------- one screen (hot-seat) ----------
   if (game.state) {
     if (game.state.phase === 'game-over' && localEnd) {
-      return (
+      return withKind('desktop',
         <EndScreen
           state={game.state}
           onNew={() => {
             game.quit();
             setScreen('new');
           }}
-        />
+        />,
       );
     }
-    return (
+    return withKind(
+      'desktop',
       <ErrorBoundary onReset={toTitle}>
         <Table state={game.state} dispatch={game.dispatch} onQuit={toTitle} />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
   }
 
   // ---------- online ----------
   if (online.status === 'replaced') {
-    return <OnlineStatusScreen title="Opened in another tab" detail="This game is now open in another tab or window." onBack={toTitle} />;
+    return withKind(deviceKind, <OnlineStatusScreen title="Opened in another tab" detail="This game is now open in another tab or window." onBack={toTitle} />);
   }
   if (online.status === 'game' && online.view && online.seat !== null) {
     if (online.view.phase === 'game-over' && onlineEnd) {
       const isHost = online.lobby?.hostSeat === online.seat;
-      return (
+      return withKind(
+        deviceKind,
         <EndScreen
           state={online.view}
           onNew={toTitle}
@@ -88,10 +110,11 @@ export function App() {
               <p className="muted">Waiting for the host to start a new game…</p>
             )
           }
-        />
+        />,
       );
     }
-    return (
+    return withKind(
+      deviceKind,
       <ErrorBoundary onReset={toTitle}>
         <Table
           state={online.view}
@@ -107,11 +130,12 @@ export function App() {
           notice={online.error}
           offline={!online.socketOpen}
         />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
   }
   if (online.status === 'lobby' && online.lobby && online.room && online.seat !== null) {
-    return (
+    return withKind(
+      deviceKind,
       <LobbyScreen
         room={online.room}
         seat={online.seat}
@@ -120,14 +144,15 @@ export function App() {
         error={online.error?.message ?? null}
         onStart={online.start}
         onLeave={toTitle}
-      />
+      />,
     );
   }
   if (online.status === 'connecting' && online.rejoining) {
-    return <OnlineStatusScreen title="Reconnecting…" detail="Getting your seat back. If the server was asleep this can take up to a minute." onBack={toTitle} />;
+    return withKind(deviceKind, <OnlineStatusScreen title="Reconnecting…" detail="Getting your seat back. If the server was asleep this can take up to a minute." onBack={toTitle} />);
   }
   if (screen === 'create' || screen === 'join') {
-    return (
+    return withKind(
+      deviceKind,
       <OnlineEntryScreen
         mode={screen}
         initialCode={roomFromUrl()}
@@ -136,24 +161,25 @@ export function App() {
         onCreate={online.create}
         onJoin={online.join}
         onBack={toTitle}
-      />
+      />,
     );
   }
   if (online.status === 'connecting') {
-    return <OnlineStatusScreen title="Reconnecting…" detail="Getting your seat back. If the server was asleep this can take up to a minute." onBack={toTitle} />;
+    return withKind(deviceKind, <OnlineStatusScreen title="Reconnecting…" detail="Getting your seat back. If the server was asleep this can take up to a minute." onBack={toTitle} />);
   }
 
   // ---------- menus ----------
   if (screen === 'new') {
-    return <NewGameScreen onStart={game.start} onBack={() => setScreen('title')} />;
+    return withKind('desktop', <NewGameScreen onStart={game.start} onBack={() => setScreen('title')} />);
   }
-  return (
+  return withKind(
+    deviceKind,
     <TitleScreen
       canContinue={loadGame() !== null}
       onCreate={() => setScreen('create')}
       onJoin={() => setScreen('join')}
       onLocal={() => setScreen('new')}
       onContinue={game.resume}
-    />
+    />,
   );
 }

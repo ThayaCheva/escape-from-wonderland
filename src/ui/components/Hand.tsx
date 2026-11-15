@@ -6,7 +6,7 @@ interface Props {
   cards: CardT[];
   faceUp: boolean;
   length: number;
-  size?: 'hand' | 'hand-lg';
+  size?: 'hand' | 'hand-lg' | 'hand-phone';
   selectedIds?: string[];
   isDimmed?: (card: CardT) => boolean;
   onCardClick?: (card: CardT, index: number) => void;
