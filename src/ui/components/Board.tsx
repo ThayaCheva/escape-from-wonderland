@@ -34,6 +34,7 @@ export function Board(props: Props) {
   const [masks, setMasks] = useState<Masks>({});
   const [hovered, setHovered] = useState<LocationId | null>(null);
   const [tip, setTip] = useState<{ loc: LocationId; x: number; y: number } | null>(null);
+  const [showDiscard, setShowDiscard] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -117,7 +118,13 @@ export function Board(props: Props) {
         {state.deck.length > 0 ? <Card card={null} faceUp={false} size="pile" /> : null}
         <span className="box-count">{state.deck.length}</span>
       </div>
-      <div className="discard-box" style={boxStyle(DISCARD_BOX)}>
+      <div
+        className="discard-box"
+        style={boxStyle(DISCARD_BOX)}
+        data-testid="discard"
+        onMouseEnter={() => setShowDiscard(true)}
+        onMouseLeave={() => setShowDiscard(false)}
+      >
         {discardTop ? <Card card={discardTop} faceUp size="pile" /> : null}
         <span className="box-count">{state.discard.length}</span>
       </div>
@@ -181,7 +188,14 @@ export function Board(props: Props) {
         </div>
       ) : null}
 
-      {tip && !props.dragging ? (
+      {showDiscard && discardTop && !props.dragging ? (
+        <div className="discard-preview" data-testid="discard-preview">
+          <Card card={discardTop} faceUp size="preview" />
+          <div className="tip-label">Top of the discard pile</div>
+        </div>
+      ) : null}
+
+      {tip && !props.dragging && !showDiscard ? (
         (() => {
           const info = locationInfo(state, tip.loc);
           return (

@@ -63,10 +63,11 @@ const PANEL_POS: Record<Edge, { x: number; y: number }> = {
 
 /** For prompts that need the board clicked, a compact panel sits over the player's own hand area instead. */
 const PANEL_POS_EDGE: Record<Edge, { x: number; y: number }> = {
-  bottom: { x: 922, y: 825 },
-  top: { x: 678, y: 75 },
-  left: { x: 125, y: 572 },
-  right: { x: 1475, y: 328 },
+  // on the board, away from the player's own hand so they can plan while choosing
+  bottom: { x: 800, y: 205 },
+  top: { x: 800, y: 205 },
+  left: { x: 425, y: 450 },
+  right: { x: 1175, y: 450 },
 };
 const BOARD_PROMPTS = new Set(['exile-location', 'round-end-move', 'vorpal-target']);
 

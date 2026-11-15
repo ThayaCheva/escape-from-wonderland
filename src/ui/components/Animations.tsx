@@ -21,7 +21,7 @@ interface Props {
   viewerSeat?: Seat;
 }
 
-const SPECIAL_MS = 1500;
+const SPECIAL_MS = 3500; // long enough to read the card's text
 const BANNER_MS = 1300;
 const ROUND_MS = 1900;
 const FLIGHT_MS = 650;

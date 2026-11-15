@@ -154,3 +154,28 @@ test('pointing at a board location explains what it does', async ({ browser }) =
   await expect(pages[0].getByTestId('location-tip')).toContainText("Mad Hatter's Party");
   expect(errors).toEqual([]);
 });
+
+test('pointing at the discard pile shows its top card', async ({ browser }) => {
+  const { pages, errors } = await openPlayers(browser, 2);
+  for (let i = 0; i < 200 && !(await pages[0].getByTestId('discard').locator('.card').count()); i++) await moveSomewhere(pages);
+  await pages[0].getByTestId('discard').hover();
+  await expect(pages[0].getByTestId('discard-preview')).toBeVisible();
+  await expect(pages[0].getByTestId('discard-preview')).toContainText('Top of the discard pile');
+  expect(errors).toEqual([]);
+});
+
+test('the round-end location choice does not cover your hand', async ({ browser }) => {
+  const { pages, errors } = await openPlayers(browser, 2);
+  let chooser: Page | null = null;
+  for (let i = 0; i < 300 && !chooser; i++) {
+    for (const p of pages) if ((await p.getByTestId('prompt').count()) && /round is over/.test(await p.getByTestId('prompt').innerText())) chooser = p;
+    if (!chooser) await moveSomewhere(pages);
+  }
+  const c = chooser as Page | null;
+  if (!c) throw new Error('no round ended');
+  const panel = (await c.getByTestId('prompt').boundingBox())!;
+  const hand = (await c.locator('.player-edge[data-viewer="true"] .hand').boundingBox())!;
+  const overlaps = panel.x < hand.x + hand.width && hand.x < panel.x + panel.width && panel.y < hand.y + hand.height && hand.y < panel.y + panel.height;
+  expect(overlaps).toBe(false);
+  expect(errors).toEqual([]);
+});
