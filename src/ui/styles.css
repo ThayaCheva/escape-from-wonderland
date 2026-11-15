@@ -868,13 +868,13 @@ body,
   flex-direction: column;
   align-items: center;
   transform: translate(-50%, -50%);
-  animation: special 3500ms ease both;
+  animation: special 3800ms ease both;
 }
 @keyframes special {
   0% { transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) scale(0.25) rotate(-30deg); opacity: 0; }
-  11% { transform: translate(-50%, -50%) scale(1.08) rotate(4deg); opacity: 1; filter: drop-shadow(0 0 30px var(--gold-bright)); }
-  15% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-  90% { transform: translate(-50%, -50%) scale(1); opacity: 1; filter: drop-shadow(0 0 14px var(--gold-bright)); }
+  10% { transform: translate(-50%, -50%) scale(1.08) rotate(4deg); opacity: 1; filter: drop-shadow(0 0 30px var(--gold-bright)); }
+  13% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  92% { transform: translate(-50%, -50%) scale(1); opacity: 1; filter: drop-shadow(0 0 14px var(--gold-bright)); }
   100% { transform: translate(-50%, -50%) scale(0.92); opacity: 0; }
 }
 .anim-caption {

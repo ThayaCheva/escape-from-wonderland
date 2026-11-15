@@ -25,7 +25,8 @@ interface Props {
   viewerSeat?: Seat;
 }
 
-const SPECIAL_MS = 3500; // long enough to read the card's text
+// fly in (~0.4 s), stay fully up for 3 s so the card can be read, then fade (~0.3 s)
+const SPECIAL_MS = 3800;
 const BANNER_MS = 1300;
 const ROUND_MS = 1900;
 const FLIGHT_MS = 650;
