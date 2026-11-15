@@ -1,8 +1,12 @@
 services:
   - type: web
-    name: escape-from-wonderland
+    name: escape-from-wonderland-sg
     runtime: node
     plan: free
+    # closest Render region to the players
+    region: singapore
+    # deploy every push to main
+    autoDeploy: true
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health

@@ -25,7 +25,7 @@ You need a GitHub account. It takes about 10 minutes, once.
 3. Connect your GitHub account if asked, and pick the `escape-from-wonderland` repository.
 4. Render reads `render.yaml` from the project and shows one free web service. Click **Apply**.
 5. Wait until the service says **Live** (the first build takes a few minutes).
-6. Click the service. Its address looks like `https://escape-from-wonderland.onrender.com`.
+6. Click the service. Its address looks like `https://escape-from-wonderland-sg.onrender.com`.
    That is your game. Open it, click **Create online room**, and paste the link into Discord.
 
 ## Good to know
